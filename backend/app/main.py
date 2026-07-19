@@ -9,6 +9,7 @@ from app.api.auth import router as auth_router
 from app.api.calls import router as calls_router
 from app.api.customers import router as customers_router
 from app.api.dashboard import router as dashboard_router
+from app.api.data_import import router as data_import_router
 from app.api.knowledge import router as knowledge_router
 from app.api.supervisor import router as supervisor_router
 from app.api.training import router as training_router
@@ -35,6 +36,7 @@ app.include_router(appointments_router)
 app.include_router(knowledge_router)
 app.include_router(dashboard_router)
 app.include_router(customers_router)
+app.include_router(data_import_router)
 app.include_router(training_router)
 app.include_router(workflows_router)
 app.include_router(supervisor_router)

@@ -7,6 +7,7 @@ import { authGuard } from './auth.guard';
 import { CallsViewComponent } from './calls-view.component';
 import { CustomerListComponent } from './customer-list.component';
 import { DashboardComponent } from './dashboard.component';
+import { DataImportComponent } from './data-import.component';
 import { LoginComponent } from './login.component';
 import { RegisterComponent } from './register.component';
 import { SupervisorDashboardComponent } from './supervisor-dashboard.component';
@@ -28,5 +29,6 @@ export const routes: Routes = [
   { path: 'workflows', component: WorkflowListComponent, canActivate: [authGuard] },
   { path: 'workflows/:id', component: WorkflowDetailComponent, canActivate: [authGuard] },
   { path: 'live', component: SupervisorDashboardComponent, canActivate: [authGuard] },
+  { path: 'data-import', component: DataImportComponent, canActivate: [authGuard] },
   { path: '**', redirectTo: 'dashboard' },
 ];

@@ -1,0 +1,107 @@
+<section class="page">
+  <div class="page-header">
+    <div>
+      <h2>Data Import</h2>
+      <p class="page-subtitle">
+        Upload a CSV export of your real member, claim, formulary, or pharmacy data. Re-importing the same
+        file later updates existing records instead of duplicating them.
+      </p>
+    </div>
+  </div>
+
+  <div class="field entity-field">
+    <span class="field-label">What are you importing?</span>
+    <select [ngModel]="selectedEntity()" (ngModelChange)="selectedEntity.set($event); onEntityChange()">
+      @for (e of entityOrder; track e) {
+        <option [value]="e">{{ entityLabels[e] }}</option>
+      }
+    </select>
+  </div>
+
+  @if (selectedEntity() === 'claims') {
+    <p class="hint">Claims reference members by Member ID — import members first.</p>
+  }
+
+  <div class="field">
+    <span class="field-label">CSV file</span>
+    <input type="file" accept=".csv" (change)="onFileSelected($event)" />
+  </div>
+
+  @if (parseError()) {
+    <p class="error-banner">{{ parseError() }}</p>
+  }
+
+  @if (csvHeaders().length > 0) {
+    <section class="mapping-section">
+      <h3>Map columns — {{ fileName() }} ({{ csvRows().length }} row(s))</h3>
+      <div class="mapping-table">
+        @for (field of fields(); track field.key) {
+          <div class="mapping-row">
+            <span class="mapping-label">
+              {{ field.label }}
+              @if (field.required) {
+                <span class="required-mark">*</span>
+              }
+            </span>
+            <select [(ngModel)]="mapping[field.key]" [name]="'map-' + field.key">
+              <option value="">— not mapped —</option>
+              @for (header of csvHeaders(); track header) {
+                <option [value]="header">{{ header }}</option>
+              }
+            </select>
+          </div>
+        }
+      </div>
+
+      <h4>Preview (first 5 rows, as mapped)</h4>
+      <div class="data-table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              @for (field of fields(); track field.key) {
+                <th>{{ field.label }}</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of previewRows(); track $index) {
+              <tr>
+                @for (field of fields(); track field.key) {
+                  <td>{{ mappedPreviewValue(field, row) }}</td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (mappingError()) {
+        <p class="error-banner">{{ mappingError() }}</p>
+      }
+
+      <button type="button" class="btn btn-primary" [disabled]="importing()" (click)="onImport()">
+        {{ importing() ? 'Importing…' : 'Import ' + csvRows().length + ' row(s)' }}
+      </button>
+    </section>
+  }
+
+  @if (result(); as r) {
+    <section class="result-section">
+      <h3>Import result</h3>
+      <div class="result-summary">
+        <span class="badge badge-good">{{ r.created }} created</span>
+        <span class="badge badge-accent">{{ r.updated }} updated</span>
+        @if (r.errors.length > 0) {
+          <span class="badge badge-critical">{{ r.errors.length }} error(s)</span>
+        }
+      </div>
+      @if (r.errors.length > 0) {
+        <ul class="error-list">
+          @for (e of r.errors; track $index) {
+            <li>Row {{ e.row }}: {{ e.message }}</li>
+          }
+        </ul>
+      }
+    </section>
+  }
+</section>
