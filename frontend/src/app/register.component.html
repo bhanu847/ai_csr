@@ -1,0 +1,35 @@
+<main class="auth-page">
+  <form class="auth-form" (ngSubmit)="onSubmit()">
+    <h2>Create workspace</h2>
+
+    <label>
+      Company name
+      <input name="tenantName" [(ngModel)]="tenantName" required placeholder="Acme Health" />
+    </label>
+
+    <label>
+      Workspace slug
+      <input name="tenantSlug" [(ngModel)]="tenantSlug" required placeholder="acme-health" />
+    </label>
+
+    <label>
+      Admin email
+      <input name="adminEmail" type="email" [(ngModel)]="adminEmail" required />
+    </label>
+
+    <label>
+      Admin password
+      <input name="adminPassword" type="password" [(ngModel)]="adminPassword" required minlength="8" />
+    </label>
+
+    @if (error()) {
+      <p class="error">{{ error() }}</p>
+    }
+
+    <button type="submit" [disabled]="submitting()">
+      {{ submitting() ? 'Creating…' : 'Create workspace' }}
+    </button>
+
+    <p class="switch">Already have a workspace? <a routerLink="/login">Log in</a></p>
+  </form>
+</main>

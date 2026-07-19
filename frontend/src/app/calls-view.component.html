@@ -1,0 +1,60 @@
+<section class="page">
+  <h2>Live calls</h2>
+  <p class="hint">Read-only — refreshes every 5 seconds.</p>
+
+  @if (calls.error()) {
+    <p class="error">{{ calls.error() }}</p>
+  }
+
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>From</th>
+        <th>To</th>
+        <th>Status</th>
+        <th>Started</th>
+        <th>Ended</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (call of calls.calls(); track call.id) {
+        <tr>
+          <td>{{ call.from_number }}</td>
+          <td>{{ call.to_number }}</td>
+          <td><span class="status" [class]="call.status">{{ call.status }}</span></td>
+          <td>{{ call.started_at | date: 'short' }}</td>
+          <td>{{ call.ended_at ? (call.ended_at | date: 'short') : '—' }}</td>
+        </tr>
+      } @empty {
+        <tr><td colspan="5" class="empty">No calls yet.</td></tr>
+      }
+    </tbody>
+  </table>
+
+  <h2>Appointments</h2>
+
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Phone</th>
+        <th>Preferred time</th>
+        <th>Reason</th>
+        <th>Booked</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (appt of appointments.appointments(); track appt.id) {
+        <tr>
+          <td>{{ appt.caller_name }}</td>
+          <td>{{ appt.caller_phone }}</td>
+          <td>{{ appt.preferred_time }}</td>
+          <td>{{ appt.reason || '—' }}</td>
+          <td>{{ appt.created_at | date: 'short' }}</td>
+        </tr>
+      } @empty {
+        <tr><td colspan="5" class="empty">No appointments yet.</td></tr>
+      }
+    </tbody>
+  </table>
+</section>

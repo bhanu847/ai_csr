@@ -1,0 +1,75 @@
+<section class="page">
+  <a routerLink="/agents" class="back-link">&larr; Agent Studio</a>
+
+  @if (loadError()) {
+    <p class="error">{{ loadError() }}</p>
+  }
+
+  @if (agent(); as a) {
+    <div class="detail-grid">
+      <form class="edit-form" (ngSubmit)="onSave()">
+        <h2>
+          {{ a.name }}
+          @if (a.is_default) {
+            <span class="badge">default</span>
+          }
+        </h2>
+
+        <label>
+          Name
+          <input name="name" [(ngModel)]="a.name" required />
+        </label>
+
+        <label>
+          Voice
+          <select name="voice" [(ngModel)]="a.voice">
+            @for (v of voiceOptions; track v) {
+              <option [value]="v">{{ v }}</option>
+            }
+          </select>
+        </label>
+
+        <label>
+          Persona
+          <textarea name="persona" [(ngModel)]="a.persona" rows="4"></textarea>
+        </label>
+
+        <div class="actions">
+          <button type="submit" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : 'Save changes' }}
+          </button>
+          @if (!a.is_default) {
+            <button type="button" class="secondary" (click)="onMakeDefault()">
+              Make default (answers calls)
+            </button>
+          }
+        </div>
+      </form>
+
+      <section class="knowledge-panel">
+        <h3>Knowledge base</h3>
+
+        <label class="upload-btn">
+          {{ knowledge.uploading() ? 'Uploading…' : 'Upload PDF or DOCX' }}
+          <input type="file" accept=".pdf,.docx" (change)="onFileSelected($event)" [disabled]="knowledge.uploading()" />
+        </label>
+
+        @if (knowledge.error()) {
+          <p class="error">{{ knowledge.error() }}</p>
+        }
+
+        <ul class="doc-list">
+          @for (doc of knowledge.documents(); track doc.id) {
+            <li>
+              <span class="filename">{{ doc.filename }}</span>
+              <span class="meta">{{ doc.chunk_count }} chunks</span>
+              <button (click)="onDeleteDocument(doc.id)">Delete</button>
+            </li>
+          } @empty {
+            <li class="empty">No documents uploaded yet.</li>
+          }
+        </ul>
+      </section>
+    </div>
+  }
+</section>

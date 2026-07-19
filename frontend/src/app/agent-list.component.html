@@ -1,0 +1,54 @@
+<section class="page">
+  <h2>Agent Studio</h2>
+
+  @if (agents.error()) {
+    <p class="error">{{ agents.error() }}</p>
+  }
+
+  <ul class="agent-grid">
+    @for (agent of agents.agents(); track agent.id) {
+      <li class="agent-card">
+        <a [routerLink]="['/agents', agent.id]">
+          <div class="agent-name">
+            {{ agent.name }}
+            @if (agent.is_default) {
+              <span class="badge">default</span>
+            }
+          </div>
+          <div class="agent-voice">{{ agent.voice }}</div>
+          <p class="agent-persona">{{ agent.persona || 'No persona set yet.' }}</p>
+        </a>
+      </li>
+    } @empty {
+      <li class="empty">No AI employees yet — create one below.</li>
+    }
+  </ul>
+
+  <form class="create-form" (ngSubmit)="onCreate()">
+    <h3>Create AI employee</h3>
+    <label>
+      Name
+      <input name="newName" [(ngModel)]="newName" required placeholder="Claims Assistant" />
+    </label>
+    <label>
+      Voice
+      <select name="newVoice" [(ngModel)]="newVoice">
+        @for (v of voiceOptions; track v) {
+          <option [value]="v">{{ v }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      Persona
+      <textarea
+        name="newPersona"
+        [(ngModel)]="newPersona"
+        rows="3"
+        placeholder="Professional, empathetic, speaks Hindi and English."
+      ></textarea>
+    </label>
+    <button type="submit" [disabled]="creating()">
+      {{ creating() ? 'Creating…' : 'Create' }}
+    </button>
+  </form>
+</section>

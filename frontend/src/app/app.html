@@ -1,0 +1,15 @@
+@if (auth.isAuthenticated()) {
+  <header class="topbar">
+    <div class="brand">AI Workforce Platform</div>
+    <nav>
+      <a routerLink="/agents" routerLinkActive="active">Agent Studio</a>
+      <a routerLink="/calls" routerLinkActive="active">Live Calls</a>
+    </nav>
+    <div class="user">
+      <span>{{ auth.currentUser()?.email }}</span>
+      <button (click)="onLogout()">Log out</button>
+    </div>
+  </header>
+}
+
+<router-outlet />
