@@ -9,8 +9,10 @@ from sqlalchemy import select
 
 from app.conversation.agent import run_turn
 from app.conversation.orchestrator import ConversationSession
+from app.conversation.persistence import persist_message
 from app.db.session import tenant_session
 from app.models.agent import Agent
+from app.models.conversation_message import MessageRole
 from app.speech.stt import transcribe_pcm16
 from app.speech.tts import synthesize_mulaw8k
 from app.telephony.audio_codec import mulaw8k_to_pcm16_16k_bytes
@@ -34,10 +36,20 @@ def _load_agent(tenant_id: uuid.UUID, agent_id: uuid.UUID) -> Agent:
         return agent
 
 
+def _persist_assistant_message(tenant_id: uuid.UUID, call_id: uuid.UUID, content: str) -> None:
+    with tenant_session(tenant_id) as db:
+        persist_message(db, tenant_id, call_id, MessageRole.ASSISTANT, content)
+
+
 def _run_turn_and_persist(
-    tenant_id: uuid.UUID, agent_id: uuid.UUID, call_id: uuid.UUID, session: ConversationSession
+    tenant_id: uuid.UUID,
+    agent_id: uuid.UUID,
+    call_id: uuid.UUID,
+    session: ConversationSession,
+    transcript: str,
 ) -> str:
     with tenant_session(tenant_id) as db:
+        persist_message(db, tenant_id, call_id, MessageRole.CUSTOMER, transcript)
         ctx = CallContext(db=db, tenant_id=tenant_id, agent_id=agent_id, call_id=call_id)
         return run_turn(session, ctx)
 
@@ -70,6 +82,7 @@ async def handle_media_stream(websocket: WebSocket) -> None:
                 session = ConversationSession(agent_name=agent.name, persona=agent.persona)
                 greeting = f"Hello, this is {agent.name}. How can I help you today?"
                 session.add_assistant_message(greeting)
+                await asyncio.to_thread(_persist_assistant_message, tenant_id, call_id, greeting)
                 greeting_audio = await asyncio.to_thread(synthesize_mulaw8k, greeting, agent.voice)
                 await _send_audio(websocket, stream_sid, greeting_audio)
 
@@ -82,7 +95,7 @@ async def handle_media_stream(websocket: WebSocket) -> None:
                     if transcript.strip():
                         session.add_user_message(transcript)
                         reply = await asyncio.to_thread(
-                            _run_turn_and_persist, tenant_id, agent_id, call_id, session
+                            _run_turn_and_persist, tenant_id, agent_id, call_id, session, transcript
                         )
                         audio = await asyncio.to_thread(synthesize_mulaw8k, reply, agent.voice)
                         await _send_audio(websocket, stream_sid, audio)

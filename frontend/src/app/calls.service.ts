@@ -10,9 +10,44 @@ export interface Call {
   from_number: string;
   to_number: string;
   status: 'in_progress' | 'completed' | 'failed';
+  intent: string | null;
+  sentiment: string | null;
   started_at: string;
   ended_at: string | null;
 }
+
+export interface CallDetail extends Call {
+  confidence_score: number | null;
+  summary: string | null;
+  resolution_status: 'resolved' | 'escalated' | 'abandoned' | null;
+}
+
+export interface Citation {
+  filename: string;
+  page: number | null;
+  confidence: number;
+}
+
+export interface TranscriptMessage {
+  kind: 'message';
+  timestamp: string;
+  role: 'customer' | 'assistant' | 'system' | 'tool';
+  content: string;
+  message_type: string;
+  confidence_score: number | null;
+  citations: Citation[] | null;
+}
+
+export interface TranscriptToolCall {
+  kind: 'tool_call';
+  timestamp: string;
+  tool_name: string;
+  input: Record<string, unknown>;
+  output: string;
+  execution_time_ms: number;
+}
+
+export type TranscriptEntry = TranscriptMessage | TranscriptToolCall;
 
 export interface CallFilters {
   status?: string;
@@ -48,5 +83,13 @@ export class CallsService {
     } catch {
       this.error.set('Could not load calls. Is the backend running?');
     }
+  }
+
+  async getDetail(callId: string): Promise<CallDetail> {
+    return firstValueFrom(this.http.get<CallDetail>(`${API_URL}/${callId}`));
+  }
+
+  async getTranscript(callId: string): Promise<TranscriptEntry[]> {
+    return firstValueFrom(this.http.get<TranscriptEntry[]>(`${API_URL}/${callId}/transcript`));
   }
 }

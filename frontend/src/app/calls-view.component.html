@@ -61,7 +61,9 @@
             <th>From</th>
             <th>To</th>
             <th>Agent</th>
+            <th>Intent</th>
             <th>Status</th>
+            <th>Sentiment</th>
             <th>Started</th>
             <th>Duration</th>
           </tr>
@@ -72,6 +74,7 @@
               <td>{{ call.from_number }}</td>
               <td>{{ call.to_number }}</td>
               <td>{{ call.agent_name || '—' }}</td>
+              <td>{{ call.intent || '—' }}</td>
               <td>
                 <span
                   class="badge"
@@ -82,11 +85,12 @@
                   {{ call.status }}
                 </span>
               </td>
+              <td>{{ call.sentiment || '—' }}</td>
               <td>{{ call.started_at | date: 'short' }}</td>
               <td>{{ duration(call) }}</td>
             </tr>
           } @empty {
-            <tr><td colspan="6" class="empty">No calls match these filters.</td></tr>
+            <tr><td colspan="8" class="empty">No calls match these filters.</td></tr>
           }
         </tbody>
       </table>

@@ -44,11 +44,110 @@
           <dt>Duration</dt>
           <dd>{{ duration(c) }}</dd>
         </div>
+        @if (detail(); as d) {
+          @if (d.resolution_status) {
+            <div class="detail-row">
+              <dt>Resolution</dt>
+              <dd>
+                <span
+                  class="badge"
+                  [class.badge-good]="d.resolution_status === 'resolved'"
+                  [class.badge-critical]="d.resolution_status === 'escalated'"
+                  [class.badge-neutral]="d.resolution_status === 'abandoned'"
+                >
+                  {{ d.resolution_status }}
+                </span>
+              </dd>
+            </div>
+          }
+          @if (d.intent) {
+            <div class="detail-row">
+              <dt>Intent</dt>
+              <dd>{{ d.intent }}</dd>
+            </div>
+          }
+          @if (d.sentiment) {
+            <div class="detail-row">
+              <dt>Sentiment</dt>
+              <dd>{{ d.sentiment }}</dd>
+            </div>
+          }
+          @if (d.confidence_score !== null) {
+            <div class="detail-row">
+              <dt>AI confidence</dt>
+              <dd>{{ d.confidence_score | number: '1.0-0' }}%</dd>
+            </div>
+          }
+        }
         <div class="detail-row">
           <dt>Call SID</dt>
           <dd class="mono">{{ c.twilio_call_sid }}</dd>
         </div>
       </dl>
+
+      @if (detail()?.summary; as summary) {
+        <div class="summary-card">
+          <h4>Summary</h4>
+          <p>{{ summary }}</p>
+        </div>
+      }
+
+      <div class="transcript-section">
+        <h4>Transcript</h4>
+
+        @if (loading()) {
+          <p class="hint">Loading transcript…</p>
+        } @else if (error()) {
+          <p class="error-banner">{{ error() }}</p>
+        } @else if (transcript().length === 0) {
+          <p class="empty-state">No conversation recorded for this call yet.</p>
+        } @else {
+          <div class="transcript">
+            @for (entry of transcript(); track $index) {
+              @if (entry.kind === 'message') {
+                <div class="chat-msg" [class.customer]="entry.role === 'customer'" [class.assistant]="entry.role === 'assistant'">
+                  <span class="chat-role">
+                    {{ entry.role }} · {{ entry.timestamp | date: 'shortTime' }}
+                    @if (entry.confidence_score !== null) {
+                      <span
+                        class="badge confidence-badge"
+                        [class.badge-good]="entry.confidence_score >= 90"
+                        [class.badge-warning]="entry.confidence_score >= 70 && entry.confidence_score < 90"
+                        [class.badge-critical]="entry.confidence_score < 70"
+                      >
+                        {{ entry.confidence_score | number: '1.0-0' }}%
+                      </span>
+                    }
+                  </span>
+                  <p class="chat-bubble">{{ entry.content }}</p>
+                  @if (entry.citations && entry.citations.length > 0) {
+                    <div class="citations">
+                      @for (citation of entry.citations; track citation.filename + citation.page) {
+                        <span class="citation-chip">
+                          {{ citation.filename }}{{ citation.page ? ' · p.' + citation.page : '' }} ·
+                          {{ citation.confidence | number: '1.0-0' }}%
+                        </span>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+              @if (entry.kind === 'tool_call') {
+                <div class="tool-card">
+                  <div class="tool-card-head">
+                    <span class="mono">{{ entry.tool_name }}()</span>
+                    <span class="badge badge-neutral">{{ entry.execution_time_ms | number: '1.0-0' }} ms</span>
+                  </div>
+                  <div class="tool-card-body">
+                    <div><span class="tool-label">Input</span><span class="mono">{{ entry.input | json }}</span></div>
+                    <div><span class="tool-label">Output</span>{{ entry.output }}</div>
+                  </div>
+                </div>
+              }
+            }
+          </div>
+        }
+      </div>
     </aside>
   </div>
 }

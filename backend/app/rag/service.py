@@ -73,11 +73,15 @@ def list_documents(db: Session, agent_id: uuid.UUID) -> list[dict]:
 
 def search(db: Session, agent_id: uuid.UUID, query: str, k: int = 4) -> list[dict]:
     [query_vector] = embed_texts([query])
+    distance = KnowledgeChunk.embedding.cosine_distance(query_vector)
     rows = db.execute(
-        select(KnowledgeChunk, KnowledgeDocument.filename)
+        select(KnowledgeChunk, KnowledgeDocument.filename, distance.label("distance"))
         .join(KnowledgeDocument, KnowledgeDocument.id == KnowledgeChunk.document_id)
         .where(KnowledgeChunk.agent_id == agent_id)
-        .order_by(KnowledgeChunk.embedding.cosine_distance(query_vector))
+        .order_by(distance)
         .limit(k)
     ).all()
-    return [{"text": chunk.text, "page": chunk.page, "filename": filename} for chunk, filename in rows]
+    return [
+        {"text": chunk.text, "page": chunk.page, "filename": filename, "distance": dist}
+        for chunk, filename, dist in rows
+    ]

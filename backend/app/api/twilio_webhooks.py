@@ -7,9 +7,10 @@ from twilio.request_validator import RequestValidator
 
 from app.audit import logger as audit
 from app.config import settings
+from app.conversation.summary import generate_and_store_summary
 from app.db.session import platform_session, tenant_session
 from app.models.agent import Agent
-from app.models.call import Call, CallStatus
+from app.models.call import Call, CallStatus, ResolutionStatus
 from app.models.tenant import Tenant
 from app.telephony.twiml import build_voice_stream_twiml
 from twilio.twiml.voice_response import Say, VoiceResponse
@@ -108,6 +109,10 @@ async def call_status(request: Request) -> Response:
         if call is not None and call_status_value in ("completed", "failed", "busy", "no-answer", "canceled"):
             call.status = CallStatus.COMPLETED if call_status_value == "completed" else CallStatus.FAILED
             call.ended_at = datetime.now(timezone.utc)
+            if call.resolution_status is None:
+                call.resolution_status = (
+                    ResolutionStatus.RESOLVED if call_status_value == "completed" else ResolutionStatus.ABANDONED
+                )
             audit.record(
                 db,
                 tenant_id=tenant.id,
@@ -116,5 +121,7 @@ async def call_status(request: Request) -> Response:
                 resource_id=call_sid,
                 metadata={"twilio_status": call_status_value},
             )
+            if call_status_value == "completed" and call.summary is None:
+                generate_and_store_summary(db, call.id)
 
     return Response(status_code=204)

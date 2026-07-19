@@ -1,20 +1,44 @@
 from collections.abc import Callable
 
+from sqlalchemy import update
+
+from app import confidence_service
 from app.audit import logger as audit
 from app.models.appointment import Appointment
+from app.models.call import Call, ResolutionStatus
 from app.rag import service as rag_service
 from app.tools.context import CallContext
 
 
 def _search_documents(ctx: CallContext, args: dict) -> str:
     results = rag_service.search(ctx.db, ctx.agent_id, args["query"], k=4)
-    if not results:
-        return "No relevant information found in the knowledge base."
-    lines = []
+    result = confidence_service.evaluate(results)
+    ctx.last_confidence = result.score
+    directive = f"[CONFIDENCE: {result.score}% — {result.band.value.upper()}] {confidence_service.build_directive(result)}"
+
+    if not results or result.band == confidence_service.ConfidenceBand.LOW:
+        # Withhold the (unreliable) chunk text entirely — a weak match is
+        # treated the same as no match, not handed to the LLM to answer from.
+        ctx.last_citations = None
+        return directive
+
+    # Structured, per-chunk citations for the trust/audit trail (shown in
+    # the supervisor transcript UI) — kept separate from the spoken reply,
+    # which per the voice rules below never reads out filenames.
+    ctx.last_citations = [
+        {
+            "filename": r["filename"],
+            "page": r["page"],
+            "confidence": confidence_service.score_from_distance(r["distance"]),
+        }
+        for r in results
+    ]
+
+    lines = [directive, ""]
     for r in results:
         citation = r["filename"] + (f" (page {r['page']})" if r["page"] else "")
         lines.append(f"[{citation}]: {r['text']}")
-    return "\n\n".join(lines)
+    return "\n".join(lines)
 
 
 def _schedule_appointment(ctx: CallContext, args: dict) -> str:
@@ -41,6 +65,10 @@ def _schedule_appointment(ctx: CallContext, args: dict) -> str:
 
 
 def _escalate_to_human(ctx: CallContext, args: dict) -> str:
+    if ctx.call_id is not None:
+        ctx.db.execute(
+            update(Call).where(Call.id == ctx.call_id).values(resolution_status=ResolutionStatus.ESCALATED)
+        )
     audit.record(
         ctx.db,
         tenant_id=ctx.tenant_id,
