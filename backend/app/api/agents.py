@@ -18,12 +18,14 @@ class CreateAgentRequest(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     persona: str = Field(default="", max_length=2000)
     voice: str = Field(default="en-IN-NeerjaNeural", max_length=100)
+    department: str = Field(default="general", max_length=50)
 
 
 class UpdateAgentRequest(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=255)
     persona: str | None = Field(default=None, max_length=2000)
     voice: str | None = Field(default=None, max_length=100)
+    department: str | None = Field(default=None, max_length=50)
     is_default: bool | None = None
 
 
@@ -32,6 +34,7 @@ class AgentResponse(BaseModel):
     name: str
     persona: str
     voice: str
+    department: str
     is_default: bool
 
     model_config = {"from_attributes": True}
@@ -51,6 +54,7 @@ def create_agent(
         name=body.name,
         persona=body.persona,
         voice=body.voice,
+        department=body.department,
         is_default=is_first_agent,
     )
     db.add(agent)
@@ -96,6 +100,8 @@ def update_agent(
         agent.persona = body.persona
     if body.voice is not None:
         agent.voice = body.voice
+    if body.department is not None:
+        agent.department = body.department
     if body.is_default is True:
         for other in db.execute(
             select(Agent).where(Agent.tenant_id == current_user.tenant_id, Agent.id != agent.id)

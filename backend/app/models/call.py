@@ -35,6 +35,9 @@ class Call(Base):
     agent_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("agents.id", ondelete="SET NULL"), nullable=True
     )
+    customer_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("customer_profiles.id", ondelete="SET NULL"), nullable=True
+    )
     twilio_call_sid: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     from_number: Mapped[str] = mapped_column(String(32), nullable=False)
     to_number: Mapped[str] = mapped_column(String(32), nullable=False)
@@ -53,3 +56,13 @@ class Call(Base):
     resolution_status: Mapped[ResolutionStatus | None] = mapped_column(
         Enum(ResolutionStatus, name="resolution_status"), nullable=True
     )
+
+    # QA scores (Feature 11) — an independent LLM review of the full
+    # transcript + tool calls, separate from resolution_status (which is
+    # set procedurally by the tool layer, not judged). All 0-100, null
+    # until app.conversation.quality runs at call end.
+    accuracy_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    compliance_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    empathy_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    resolution_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    qa_notes: Mapped[str | None] = mapped_column(String, nullable=True)

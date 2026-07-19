@@ -7,6 +7,7 @@ from twilio.request_validator import RequestValidator
 
 from app.audit import logger as audit
 from app.config import settings
+from app.conversation.customer_memory import get_or_create_profile
 from app.conversation.summary import generate_and_store_summary
 from app.db.session import platform_session, tenant_session
 from app.models.agent import Agent
@@ -57,9 +58,12 @@ async def incoming_call(request: Request) -> Response:
         if agent is None:
             agent = db.execute(select(Agent).where(Agent.tenant_id == tenant.id)).scalars().first()
 
+        profile = get_or_create_profile(db, tenant.id, from_number)
+
         call = Call(
             tenant_id=tenant.id,
             agent_id=agent.id if agent else None,
+            customer_id=profile.id,
             twilio_call_sid=call_sid,
             from_number=from_number,
             to_number=to_number,

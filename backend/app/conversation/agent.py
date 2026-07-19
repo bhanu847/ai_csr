@@ -7,8 +7,8 @@ from app.conversation.persistence import persist_message, persist_tool_execution
 from app.llm.client import chat_completion
 from app.models.conversation_message import MessageRole
 from app.tools.context import CallContext
+from app.tools.department_tools import tools_for_department
 from app.tools.handlers import build_tool_handlers
-from app.tools.schemas import TOOL_SCHEMAS
 
 logger = logging.getLogger("agent")
 
@@ -34,9 +34,14 @@ def run_turn(session: ConversationSession, ctx: CallContext) -> str:
     ctx.last_confidence = None
     ctx.last_citations = None
     handlers = build_tool_handlers(ctx)
+    # Scoped to the active department (see app.tools.department_tools) — a
+    # specialist agent literally can't be offered tools outside its remit,
+    # not just discouraged from using them via prompt wording.
+    schemas = tools_for_department(ctx.department)
+    allowed_tool_names = {schema["function"]["name"] for schema in schemas}
 
     for _ in range(MAX_TOOL_ROUNDS):
-        message = chat_completion(session.history, tools=TOOL_SCHEMAS)
+        message = chat_completion(session.history, tools=schemas)
 
         if not message.tool_calls:
             reply = message.content or ""
@@ -47,7 +52,7 @@ def run_turn(session: ConversationSession, ctx: CallContext) -> str:
         session.history.append(message.model_dump(exclude_none=True))
 
         for tool_call in message.tool_calls:
-            handler = handlers.get(tool_call.function.name)
+            handler = handlers.get(tool_call.function.name) if tool_call.function.name in allowed_tool_names else None
             args: dict = {}
             started = time.perf_counter()
             if handler is None:

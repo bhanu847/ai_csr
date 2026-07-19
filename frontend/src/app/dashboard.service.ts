@@ -7,12 +7,29 @@ export interface CallVolumePoint {
   count: number;
 }
 
+export interface RecentConversation {
+  id: string;
+  from_number: string;
+  agent_name: string | null;
+  intent: string | null;
+  sentiment: string | null;
+  resolution_status: string | null;
+  started_at: string;
+}
+
 export interface DashboardSummary {
   total_agents: number;
+  agents_on_active_calls: number;
   total_calls: number;
   appointments_booked: number;
   calls_in_progress: number;
+  resolution_rate: number;
+  escalation_rate: number;
+  avg_handle_time_seconds: number | null;
+  cost_saved_estimate: number;
+  cost_saved_assumption_per_call: number;
   call_volume: CallVolumePoint[];
+  recent_conversations: RecentConversation[];
 }
 
 const API_URL = 'http://localhost:8001/api/dashboard';

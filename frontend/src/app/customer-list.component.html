@@ -1,0 +1,51 @@
+<section class="page">
+  <div class="page-header">
+    <div>
+      <h2>Customers</h2>
+      <p class="page-subtitle">Callers this workspace has spoken with, and what the AI remembers about them.</p>
+    </div>
+  </div>
+
+  @if (customers.error()) {
+    <p class="error-banner">{{ customers.error() }}</p>
+  }
+
+  <div class="toolbar">
+    <div class="field search-field">
+      <input
+        type="search"
+        [ngModel]="searchTerm()"
+        (ngModelChange)="searchTerm.set($event)"
+        placeholder="Search by name or phone number…"
+        aria-label="Search customers"
+      />
+    </div>
+  </div>
+
+  <div class="data-table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Phone</th>
+          <th>Language</th>
+          <th>Last interaction</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (customer of filteredCustomers(); track customer.id) {
+          <tr (click)="selectedCustomer.set(customer)">
+            <td>{{ customer.name || 'Unknown caller' }}</td>
+            <td>{{ customer.phone_number }}</td>
+            <td>{{ customer.language || '—' }}</td>
+            <td>{{ customer.last_interaction ? (customer.last_interaction | date: 'short') : '—' }}</td>
+          </tr>
+        } @empty {
+          <tr><td colspan="4" class="empty">No customers on record yet.</td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<app-customer-detail-drawer [customer]="selectedCustomer()" (closed)="selectedCustomer.set(null)" />

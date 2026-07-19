@@ -3,7 +3,7 @@ import { Component, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
-import { Agent, AgentsService, VOICE_OPTIONS } from './agents.service';
+import { Agent, AgentsService, DEPARTMENT_OPTIONS, VOICE_OPTIONS } from './agents.service';
 import { KnowledgeService } from './knowledge.service';
 import { VoiceCatalogEntry, voiceCatalogEntry } from './voice-catalog';
 import { VoicePreviewService } from './voice-preview.service';
@@ -18,6 +18,7 @@ export type FileKind = 'pdf' | 'docx' | 'generic';
 })
 export class AgentDetailComponent implements OnInit {
   readonly voiceOptions = VOICE_OPTIONS;
+  readonly departmentOptions = DEPARTMENT_OPTIONS;
   readonly agent = signal<Agent | null>(null);
   readonly saving = signal(false);
   readonly loadError = signal<string | null>(null);
@@ -58,6 +59,7 @@ export class AgentDetailComponent implements OnInit {
         name: agent.name,
         persona: agent.persona,
         voice: agent.voice,
+        department: agent.department,
       });
       this.agent.set(updated);
     } finally {

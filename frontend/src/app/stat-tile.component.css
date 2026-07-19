@@ -29,3 +29,8 @@
   font-variant-numeric: proportional-nums;
   letter-spacing: -0.01em;
 }
+
+.stat-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+}

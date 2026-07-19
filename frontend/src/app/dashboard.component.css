@@ -4,3 +4,16 @@
   gap: 16px;
   margin-bottom: 24px;
 }
+
+.stat-grid.secondary {
+  opacity: 0.92;
+}
+
+.recent-conversations {
+  margin-top: 32px;
+}
+
+.recent-conversations h3 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}

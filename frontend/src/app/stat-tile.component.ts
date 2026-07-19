@@ -9,10 +9,15 @@ export class StatTileComponent {
   @Input({ required: true }) label!: string;
   @Input({ required: true }) value!: number;
   @Input() accent: 'accent' | 'good' | 'warning' = 'accent';
+  @Input() prefix = '';
+  @Input() suffix = '';
+  @Input() hint = '';
 
   get formattedValue(): string {
-    return this.value >= 10000
-      ? Intl.NumberFormat('en', { notation: 'compact' }).format(this.value)
-      : this.value.toLocaleString('en');
+    const formatted =
+      this.value >= 10000
+        ? Intl.NumberFormat('en', { notation: 'compact' }).format(this.value)
+        : this.value.toLocaleString('en');
+    return `${this.prefix}${formatted}${this.suffix}`;
   }
 }

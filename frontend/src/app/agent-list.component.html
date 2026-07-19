@@ -31,6 +31,9 @@
             @if (agent.is_default) {
               <span class="badge badge-accent">Default</span>
             }
+            @if (agent.department !== 'general') {
+              <span class="badge badge-neutral">{{ agent.department }}</span>
+            }
           </div>
           <div class="agent-voice">{{ agent.voice }}</div>
           <p class="agent-persona">{{ agent.persona || 'No persona set yet.' }}</p>
@@ -85,6 +88,15 @@
         rows="3"
         placeholder="Professional, empathetic, speaks Hindi and English."
       ></textarea>
+    </label>
+    <label>
+      Department
+      <select name="newDepartment" [(ngModel)]="newDepartment">
+        @for (d of departmentOptions; track d) {
+          <option [value]="d">{{ d }}</option>
+        }
+      </select>
+      <span class="voice-meta">"general" answers calls directly and routes callers to specialists.</span>
     </label>
     <button type="submit" class="btn btn-primary" [disabled]="creating()">
       {{ creating() ? 'Creating…' : 'Create' }}

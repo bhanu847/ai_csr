@@ -4,6 +4,7 @@ import { AgentDetailComponent } from './agent-detail.component';
 import { AgentListComponent } from './agent-list.component';
 import { authGuard } from './auth.guard';
 import { CallsViewComponent } from './calls-view.component';
+import { CustomerListComponent } from './customer-list.component';
 import { DashboardComponent } from './dashboard.component';
 import { LoginComponent } from './login.component';
 import { RegisterComponent } from './register.component';
@@ -16,5 +17,6 @@ export const routes: Routes = [
   { path: 'agents', component: AgentListComponent, canActivate: [authGuard] },
   { path: 'agents/:id', component: AgentDetailComponent, canActivate: [authGuard] },
   { path: 'calls', component: CallsViewComponent, canActivate: [authGuard] },
+  { path: 'customers', component: CustomerListComponent, canActivate: [authGuard] },
   { path: '**', redirectTo: 'dashboard' },
 ];

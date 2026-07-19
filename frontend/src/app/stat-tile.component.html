@@ -1,4 +1,7 @@
 <div class="stat-tile" [class]="'accent-' + accent">
   <span class="stat-label">{{ label }}</span>
   <span class="stat-value">{{ formattedValue }}</span>
+  @if (hint) {
+    <span class="stat-hint">{{ hint }}</span>
+  }
 </div>

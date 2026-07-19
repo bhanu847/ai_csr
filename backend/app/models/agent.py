@@ -23,4 +23,8 @@ class Agent(Base):
     persona: Mapped[str] = mapped_column(String(2000), nullable=False, default="")
     voice: Mapped[str] = mapped_column(String(100), nullable=False, default="en-IN-NeerjaNeural")
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # "general" (the default/router agent) or a specialist bucket — see
+    # app.tools.department_tools and app.conversation.router. Free-text
+    # rather than an enum so a tenant can name their own departments.
+    department: Mapped[str] = mapped_column(String(50), nullable=False, default="general")
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))

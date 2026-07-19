@@ -7,6 +7,7 @@ export interface Agent {
   name: string;
   persona: string;
   voice: string;
+  department: string;
   is_default: boolean;
 }
 
@@ -18,6 +19,8 @@ export const VOICE_OPTIONS = [
   'en-US-JennyNeural',
   'en-US-GuyNeural',
 ];
+
+export const DEPARTMENT_OPTIONS = ['general', 'claims', 'pharmacy', 'benefits', 'provider', 'escalation'];
 
 @Injectable({ providedIn: 'root' })
 export class AgentsService {
@@ -36,9 +39,9 @@ export class AgentsService {
     }
   }
 
-  async create(name: string, persona: string, voice: string): Promise<Agent> {
+  async create(name: string, persona: string, voice: string, department = 'general'): Promise<Agent> {
     const agent = await firstValueFrom(
-      this.http.post<Agent>(API_URL, { name, persona, voice }),
+      this.http.post<Agent>(API_URL, { name, persona, voice, department }),
     );
     await this.refresh();
     return agent;
@@ -50,7 +53,7 @@ export class AgentsService {
 
   async update(
     agentId: string,
-    changes: Partial<Pick<Agent, 'name' | 'persona' | 'voice' | 'is_default'>>,
+    changes: Partial<Pick<Agent, 'name' | 'persona' | 'voice' | 'department' | 'is_default'>>,
   ): Promise<Agent> {
     const agent = await firstValueFrom(this.http.patch<Agent>(`${API_URL}/${agentId}`, changes));
     await this.refresh();

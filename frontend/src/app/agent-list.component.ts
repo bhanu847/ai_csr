@@ -3,7 +3,7 @@ import { Component, OnInit, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
-import { Agent, AgentsService, VOICE_OPTIONS } from './agents.service';
+import { Agent, AgentsService, DEPARTMENT_OPTIONS, VOICE_OPTIONS } from './agents.service';
 import { ConfirmDialogComponent } from './shared/confirm-dialog.component';
 import { VoiceCatalogEntry, voiceCatalogEntry } from './voice-catalog';
 import { VoicePreviewService } from './voice-preview.service';
@@ -16,6 +16,7 @@ import { VoicePreviewService } from './voice-preview.service';
 })
 export class AgentListComponent implements OnInit {
   readonly voiceOptions = VOICE_OPTIONS;
+  readonly departmentOptions = DEPARTMENT_OPTIONS;
   readonly creating = signal(false);
   readonly searchTerm = signal('');
 
@@ -31,6 +32,7 @@ export class AgentListComponent implements OnInit {
   newName = '';
   newPersona = '';
   newVoice = VOICE_OPTIONS[0];
+  newDepartment = DEPARTMENT_OPTIONS[0];
 
   readonly duplicating = signal<string | null>(null);
   readonly deleteTarget = signal<Agent | null>(null);
@@ -54,7 +56,7 @@ export class AgentListComponent implements OnInit {
     if (!this.newName.trim()) return;
     this.creating.set(true);
     try {
-      await this.agents.create(this.newName, this.newPersona, this.newVoice);
+      await this.agents.create(this.newName, this.newPersona, this.newVoice, this.newDepartment);
       this.newName = '';
       this.newPersona = '';
     } finally {
@@ -65,7 +67,7 @@ export class AgentListComponent implements OnInit {
   async onDuplicate(agent: Agent): Promise<void> {
     this.duplicating.set(agent.id);
     try {
-      await this.agents.create(`${agent.name} (copy)`, agent.persona, agent.voice);
+      await this.agents.create(`${agent.name} (copy)`, agent.persona, agent.voice, agent.department);
     } finally {
       this.duplicating.set(null);
     }

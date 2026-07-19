@@ -45,6 +45,18 @@
           <textarea name="persona" [(ngModel)]="a.persona" rows="4"></textarea>
         </label>
 
+        <label>
+          Department
+          <select name="department" [(ngModel)]="a.department">
+            @for (d of departmentOptions; track d) {
+              <option [value]="d">{{ d }}</option>
+            }
+          </select>
+          <span class="voice-meta">
+            "general" answers calls directly and routes callers to specialist agents by intent.
+          </span>
+        </label>
+
         <div class="actions">
           <button type="submit" class="btn btn-primary" [disabled]="saving()">
             {{ saving() ? 'Saving…' : 'Save changes' }}

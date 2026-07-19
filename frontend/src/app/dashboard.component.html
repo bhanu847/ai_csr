@@ -1,7 +1,7 @@
 <section class="page">
   <div class="page-header">
     <div>
-      <h2>Dashboard</h2>
+      <h2>AI Workforce Overview</h2>
       <p class="page-subtitle">Last 14 days across your workspace.</p>
     </div>
   </div>
@@ -12,13 +12,80 @@
 
   @if (dashboard.summary(); as s) {
     <div class="stat-grid">
-      <app-stat-tile label="Total agents" [value]="s.total_agents" />
+      <app-stat-tile label="Active calls" [value]="s.calls_in_progress" accent="warning" />
+      <app-stat-tile
+        label="AI agents running"
+        [value]="s.agents_on_active_calls"
+        [suffix]="' / ' + s.total_agents"
+        accent="accent"
+      />
+      <app-stat-tile label="Resolution rate" [value]="s.resolution_rate" suffix="%" accent="good" />
+      <app-stat-tile
+        label="Cost saved"
+        [value]="s.cost_saved_estimate"
+        prefix="$"
+        accent="good"
+        [hint]="'Estimate: resolved calls × $' + s.cost_saved_assumption_per_call + '/call'"
+      />
+    </div>
+
+    <div class="stat-grid secondary">
       <app-stat-tile label="Total calls" [value]="s.total_calls" />
-      <app-stat-tile label="Appointments booked" [value]="s.appointments_booked" accent="good" />
-      <app-stat-tile label="Calls in progress" [value]="s.calls_in_progress" accent="warning" />
+      <app-stat-tile label="Appointments booked" [value]="s.appointments_booked" />
+      <app-stat-tile label="Human transfer rate" [value]="s.escalation_rate" suffix="%" accent="warning" />
+      <app-stat-tile
+        label="Avg handle time"
+        [value]="avgHandleTimeMinutes(s.avg_handle_time_seconds)"
+        suffix=" min"
+      />
     </div>
 
     <app-call-volume-chart [data]="s.call_volume" />
+
+    <section class="recent-conversations">
+      <h3>Recent conversations</h3>
+      <div class="data-table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>From</th>
+              <th>Agent</th>
+              <th>Intent</th>
+              <th>Sentiment</th>
+              <th>Resolution</th>
+              <th>Started</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (c of s.recent_conversations; track c.id) {
+              <tr>
+                <td>{{ c.from_number }}</td>
+                <td>{{ c.agent_name || '—' }}</td>
+                <td>{{ c.intent || '—' }}</td>
+                <td>{{ c.sentiment || '—' }}</td>
+                <td>
+                  @if (c.resolution_status; as r) {
+                    <span
+                      class="badge"
+                      [class.badge-good]="r === 'resolved'"
+                      [class.badge-critical]="r === 'escalated'"
+                      [class.badge-neutral]="r === 'abandoned'"
+                    >
+                      {{ r }}
+                    </span>
+                  } @else {
+                    —
+                  }
+                </td>
+                <td>{{ c.started_at | date: 'short' }}</td>
+              </tr>
+            } @empty {
+              <tr><td colspan="6" class="empty">No conversations yet.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
   } @else if (!dashboard.error()) {
     <p class="empty-state">Loading dashboard…</p>
   }

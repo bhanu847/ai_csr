@@ -1,0 +1,77 @@
+@if (customer; as c) {
+  <div class="drawer-scrim" (click)="closed.emit()">
+    <aside class="drawer" role="dialog" aria-modal="true" aria-label="Customer detail" (click)="$event.stopPropagation()">
+      <div class="drawer-head">
+        <h3>{{ c.name || 'Unknown caller' }}</h3>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="closed.emit()" aria-label="Close">✕</button>
+      </div>
+
+      <dl class="detail-list">
+        <div class="detail-row">
+          <dt>Phone</dt>
+          <dd class="mono">{{ c.phone_number }}</dd>
+        </div>
+        <div class="detail-row">
+          <dt>Language</dt>
+          <dd>{{ c.language || '—' }}</dd>
+        </div>
+        <div class="detail-row">
+          <dt>Last interaction</dt>
+          <dd>{{ c.last_interaction ? (c.last_interaction | date: 'medium') : '—' }}</dd>
+        </div>
+        <div class="detail-row">
+          <dt>Customer since</dt>
+          <dd>{{ c.created_at | date: 'mediumDate' }}</dd>
+        </div>
+        @if (detail(); as d) {
+          <div class="detail-row">
+            <dt>Total calls</dt>
+            <dd>{{ d.call_count }}</dd>
+          </div>
+          @if (d.latest_sentiment) {
+            <div class="detail-row">
+              <dt>Latest sentiment</dt>
+              <dd>{{ d.latest_sentiment }}</dd>
+            </div>
+          }
+        }
+      </dl>
+
+      <div class="history-section">
+        <h4>Call history</h4>
+
+        @if (loading()) {
+          <p class="hint">Loading…</p>
+        } @else if (error()) {
+          <p class="error-banner">{{ error() }}</p>
+        } @else if (detail() && detail()!.previous_calls.length === 0) {
+          <p class="empty-state">No completed calls on record yet.</p>
+        } @else if (detail(); as d) {
+          <ul class="history-list">
+            @for (call of d.previous_calls; track call.id) {
+              <li class="history-item">
+                <div class="history-item-head">
+                  <span>{{ call.started_at | date: 'mediumDate' }}</span>
+                  @if (call.resolution_status; as r) {
+                    <span
+                      class="badge"
+                      [class.badge-good]="r === 'resolved'"
+                      [class.badge-critical]="r === 'escalated'"
+                      [class.badge-neutral]="r === 'abandoned'"
+                    >
+                      {{ r }}
+                    </span>
+                  }
+                </div>
+                <p class="history-intent">{{ call.intent || 'No intent recorded' }}</p>
+                @if (call.summary) {
+                  <p class="history-summary">{{ call.summary }}</p>
+                }
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    </aside>
+  </div>
+}
