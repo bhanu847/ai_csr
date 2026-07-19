@@ -2,16 +2,20 @@
   list-style: none;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 16px;
   margin: 20px 0 32px;
 }
 
 .agent-card {
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
   padding: 16px;
-  background: white;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .agent-card a {
@@ -24,44 +28,63 @@
   font-weight: 600;
   font-size: 16px;
   margin-bottom: 4px;
-}
-
-.badge {
-  font-size: 11px;
-  font-weight: 500;
-  background: #111827;
-  color: white;
-  padding: 2px 8px;
-  border-radius: 999px;
-  margin-left: 8px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .agent-voice {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-muted);
   margin-bottom: 8px;
 }
 
 .agent-persona {
   font-size: 13px;
-  color: #374151;
+  color: var(--text-secondary);
   margin: 0;
 }
 
+.agent-card-actions {
+  display: flex;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
 .empty {
-  color: #9ca3af;
+  color: var(--text-muted);
   list-style: none;
 }
 
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.search-field {
+  flex: 1;
+  max-width: 320px;
+}
+
 .create-form {
-  max-width: 420px;
+  max-width: 440px;
   display: flex;
   flex-direction: column;
   gap: 12px;
   padding: 20px;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  background: #f9fafb;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.create-form h3 {
+  margin: 0;
+  font-size: 15px;
 }
 
 .create-form label {
@@ -69,27 +92,20 @@
   flex-direction: column;
   gap: 4px;
   font-size: 14px;
+  color: var(--text-secondary);
 }
 
-.create-form input,
-.create-form select,
-.create-form textarea {
-  padding: 8px 10px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 14px;
-  font-family: inherit;
+.voice-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
 }
 
-.create-form button {
-  padding: 10px;
-  border: none;
-  border-radius: 8px;
-  background: #111827;
-  color: white;
-  cursor: pointer;
+.voice-row select {
+  flex: 1;
 }
 
-.create-form button:disabled {
-  opacity: 0.6;
+.voice-meta {
+  font-size: 12px;
+  color: var(--text-muted);
 }

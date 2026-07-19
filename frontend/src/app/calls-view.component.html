@@ -1,60 +1,150 @@
 <section class="page">
-  <h2>Live calls</h2>
-  <p class="hint">Read-only — refreshes every 5 seconds.</p>
+  <div class="page-header">
+    <div>
+      <h2>Calls &amp; Appointments</h2>
+      <p class="page-subtitle hint">Refreshes every 5 seconds.</p>
+    </div>
+  </div>
 
-  @if (calls.error()) {
-    <p class="error">{{ calls.error() }}</p>
+  <div class="view-tabs">
+    <button type="button" class="view-tab" [class.active]="activeTab() === 'calls'" (click)="activeTab.set('calls')">
+      Live Calls
+    </button>
+    <button
+      type="button"
+      class="view-tab"
+      [class.active]="activeTab() === 'appointments'"
+      (click)="activeTab.set('appointments')"
+    >
+      Appointments
+    </button>
+  </div>
+
+  @if (activeTab() === 'calls') {
+    @if (calls.error()) {
+      <p class="error-banner">{{ calls.error() }}</p>
+    }
+
+    <div class="filter-row">
+      <div class="field">
+        <span class="field-label">Status</span>
+        <select [(ngModel)]="statusFilter" (ngModelChange)="applyCallFilters()">
+          <option value="">All</option>
+          <option value="in_progress">In progress</option>
+          <option value="completed">Completed</option>
+          <option value="failed">Failed</option>
+        </select>
+      </div>
+      <div class="field">
+        <span class="field-label">Agent</span>
+        <select [(ngModel)]="callAgentFilter" (ngModelChange)="applyCallFilters()">
+          <option value="">All agents</option>
+          @for (agent of agents.agents(); track agent.id) {
+            <option [value]="agent.id">{{ agent.name }}</option>
+          }
+        </select>
+      </div>
+      <div class="field">
+        <span class="field-label">From</span>
+        <input type="date" [(ngModel)]="callFromDate" (ngModelChange)="applyCallFilters()" />
+      </div>
+      <div class="field">
+        <span class="field-label">To</span>
+        <input type="date" [(ngModel)]="callToDate" (ngModelChange)="applyCallFilters()" />
+      </div>
+    </div>
+
+    <div class="data-table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>From</th>
+            <th>To</th>
+            <th>Agent</th>
+            <th>Status</th>
+            <th>Started</th>
+            <th>Duration</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (call of calls.calls(); track call.id) {
+            <tr (click)="selectedCall.set(call)">
+              <td>{{ call.from_number }}</td>
+              <td>{{ call.to_number }}</td>
+              <td>{{ call.agent_name || '—' }}</td>
+              <td>
+                <span
+                  class="badge"
+                  [class.badge-warning]="call.status === 'in_progress'"
+                  [class.badge-good]="call.status === 'completed'"
+                  [class.badge-critical]="call.status === 'failed'"
+                >
+                  {{ call.status }}
+                </span>
+              </td>
+              <td>{{ call.started_at | date: 'short' }}</td>
+              <td>{{ duration(call) }}</td>
+            </tr>
+          } @empty {
+            <tr><td colspan="6" class="empty">No calls match these filters.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    @if (appointments.error()) {
+      <p class="error-banner">{{ appointments.error() }}</p>
+    }
+
+    <div class="filter-row">
+      <div class="field">
+        <span class="field-label">Agent</span>
+        <select [(ngModel)]="apptAgentFilter" (ngModelChange)="applyAppointmentFilters()">
+          <option value="">All agents</option>
+          @for (agent of agents.agents(); track agent.id) {
+            <option [value]="agent.id">{{ agent.name }}</option>
+          }
+        </select>
+      </div>
+      <div class="field">
+        <span class="field-label">Booked from</span>
+        <input type="date" [(ngModel)]="apptFromDate" (ngModelChange)="applyAppointmentFilters()" />
+      </div>
+      <div class="field">
+        <span class="field-label">Booked to</span>
+        <input type="date" [(ngModel)]="apptToDate" (ngModelChange)="applyAppointmentFilters()" />
+      </div>
+    </div>
+
+    <div class="data-table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Phone</th>
+            <th>Agent</th>
+            <th>Preferred time</th>
+            <th>Reason</th>
+            <th>Booked</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (appt of appointments.appointments(); track appt.id) {
+            <tr>
+              <td>{{ appt.caller_name }}</td>
+              <td>{{ appt.caller_phone }}</td>
+              <td>{{ appt.agent_name || '—' }}</td>
+              <td>{{ appt.preferred_time }}</td>
+              <td>{{ appt.reason || '—' }}</td>
+              <td>{{ appt.created_at | date: 'short' }}</td>
+            </tr>
+          } @empty {
+            <tr><td colspan="6" class="empty">No appointments match these filters.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
   }
-
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th>From</th>
-        <th>To</th>
-        <th>Status</th>
-        <th>Started</th>
-        <th>Ended</th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (call of calls.calls(); track call.id) {
-        <tr>
-          <td>{{ call.from_number }}</td>
-          <td>{{ call.to_number }}</td>
-          <td><span class="status" [class]="call.status">{{ call.status }}</span></td>
-          <td>{{ call.started_at | date: 'short' }}</td>
-          <td>{{ call.ended_at ? (call.ended_at | date: 'short') : '—' }}</td>
-        </tr>
-      } @empty {
-        <tr><td colspan="5" class="empty">No calls yet.</td></tr>
-      }
-    </tbody>
-  </table>
-
-  <h2>Appointments</h2>
-
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Phone</th>
-        <th>Preferred time</th>
-        <th>Reason</th>
-        <th>Booked</th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (appt of appointments.appointments(); track appt.id) {
-        <tr>
-          <td>{{ appt.caller_name }}</td>
-          <td>{{ appt.caller_phone }}</td>
-          <td>{{ appt.preferred_time }}</td>
-          <td>{{ appt.reason || '—' }}</td>
-          <td>{{ appt.created_at | date: 'short' }}</td>
-        </tr>
-      } @empty {
-        <tr><td colspan="5" class="empty">No appointments yet.</td></tr>
-      }
-    </tbody>
-  </table>
 </section>
+
+<app-call-detail-drawer [call]="selectedCall()" (closed)="selectedCall.set(null)" />

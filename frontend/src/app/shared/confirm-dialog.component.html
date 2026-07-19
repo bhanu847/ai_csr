@@ -1,0 +1,19 @@
+@if (open) {
+  <div class="dialog-scrim" (click)="cancelled.emit()">
+    <div class="dialog" role="alertdialog" aria-modal="true" [attr.aria-label]="title" (click)="$event.stopPropagation()">
+      <h3>{{ title }}</h3>
+      <p>{{ message }}</p>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-secondary" (click)="cancelled.emit()" [disabled]="busy">Cancel</button>
+        <button
+          type="button"
+          [class]="danger ? 'btn btn-primary btn-danger-solid' : 'btn btn-primary'"
+          (click)="confirmed.emit()"
+          [disabled]="busy"
+        >
+          {{ busy ? 'Working…' : confirmLabel }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

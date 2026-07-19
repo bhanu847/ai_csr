@@ -1,15 +1,31 @@
 @if (auth.isAuthenticated()) {
-  <header class="topbar">
-    <div class="brand">AI Workforce Platform</div>
-    <nav>
-      <a routerLink="/agents" routerLinkActive="active">Agent Studio</a>
-      <a routerLink="/calls" routerLinkActive="active">Live Calls</a>
-    </nav>
-    <div class="user">
-      <span>{{ auth.currentUser()?.email }}</span>
-      <button (click)="onLogout()">Log out</button>
+  <div class="shell">
+    <app-sidebar
+      [collapsed]="sidebarCollapsed()"
+      [mobileOpen]="mobileNavOpen()"
+      (collapsedChange)="sidebarCollapsed.set($event)"
+      (closeMobile)="mobileNavOpen.set(false)"
+      (logout)="onLogout()"
+    />
+    @if (mobileNavOpen()) {
+      <div class="scrim" (click)="mobileNavOpen.set(false)"></div>
+    }
+    <div class="shell-main">
+      <button
+        type="button"
+        class="mobile-menu-btn"
+        (click)="mobileNavOpen.set(true)"
+        aria-label="Open menu"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 6h18M3 12h18M3 18h18" />
+        </svg>
+      </button>
+      <main class="content">
+        <router-outlet />
+      </main>
     </div>
-  </header>
+  </div>
+} @else {
+  <router-outlet />
 }
-
-<router-outlet />

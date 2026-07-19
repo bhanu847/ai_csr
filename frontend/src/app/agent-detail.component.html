@@ -11,7 +11,7 @@
         <h2>
           {{ a.name }}
           @if (a.is_default) {
-            <span class="badge">default</span>
+            <span class="badge badge-accent">Default</span>
           }
         </h2>
 
@@ -22,11 +22,22 @@
 
         <label>
           Voice
-          <select name="voice" [(ngModel)]="a.voice">
-            @for (v of voiceOptions; track v) {
-              <option [value]="v">{{ v }}</option>
-            }
-          </select>
+          <div class="voice-row">
+            <select name="voice" [(ngModel)]="a.voice">
+              @for (v of voiceOptions; track v) {
+                <option [value]="v">{{ voiceMeta(v).label }} — {{ voiceMeta(v).localeName }}</option>
+              }
+            </select>
+            <button
+              type="button"
+              class="btn btn-secondary btn-sm"
+              (click)="voicePreview.preview(a.voice)"
+              [disabled]="!voicePreview.supported"
+            >
+              {{ voicePreview.speakingVoiceId() === a.voice ? 'Playing…' : 'Preview' }}
+            </button>
+          </div>
+          <span class="voice-meta">{{ voiceMeta(a.voice).gender }} · approximate preview via browser TTS</span>
         </label>
 
         <label>
@@ -35,11 +46,11 @@
         </label>
 
         <div class="actions">
-          <button type="submit" [disabled]="saving()">
+          <button type="submit" class="btn btn-primary" [disabled]="saving()">
             {{ saving() ? 'Saving…' : 'Save changes' }}
           </button>
           @if (!a.is_default) {
-            <button type="button" class="secondary" (click)="onMakeDefault()">
+            <button type="button" class="btn btn-secondary" (click)="onMakeDefault()">
               Make default (answers calls)
             </button>
           }
@@ -49,24 +60,75 @@
       <section class="knowledge-panel">
         <h3>Knowledge base</h3>
 
-        <label class="upload-btn">
-          {{ knowledge.uploading() ? 'Uploading…' : 'Upload PDF or DOCX' }}
-          <input type="file" accept=".pdf,.docx" (change)="onFileSelected($event)" [disabled]="knowledge.uploading()" />
-        </label>
+        <div
+          class="dropzone"
+          [class.drag-active]="dragActive()"
+          (dragover)="onDragOver($event)"
+          (dragleave)="onDragLeave()"
+          (drop)="onDrop($event)"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 16V4M12 4l-4 4M12 4l4 4" />
+            <path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3" />
+          </svg>
+          <span>Drag PDF or DOCX files here, or</span>
+          <label class="upload-btn">
+            Browse files
+            <input
+              type="file"
+              accept=".pdf,.docx"
+              multiple
+              (change)="onFileSelected($event)"
+            />
+          </label>
+        </div>
 
         @if (knowledge.error()) {
           <p class="error">{{ knowledge.error() }}</p>
         }
 
         <ul class="doc-list">
+          @for (name of knowledge.uploadProgress() | keyvalue; track name.key) {
+            <li>
+              <svg class="doc-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                <path d="M14 2v6h6" />
+              </svg>
+              <span class="filename">{{ name.key }}</span>
+              <div class="progress-track">
+                <div class="progress-fill" [style.width.%]="name.value"></div>
+              </div>
+              <span class="meta">{{ name.value }}%</span>
+            </li>
+          }
           @for (doc of knowledge.documents(); track doc.id) {
             <li>
+              @if (fileIcon(doc.filename) === 'pdf') {
+                <svg class="doc-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                  <path d="M14 2v6h6" />
+                  <text x="7" y="17" font-size="6" stroke="none" fill="currentColor">PDF</text>
+                </svg>
+              } @else if (fileIcon(doc.filename) === 'docx') {
+                <svg class="doc-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                  <path d="M14 2v6h6" />
+                  <text x="6" y="17" font-size="5.5" stroke="none" fill="currentColor">DOC</text>
+                </svg>
+              } @else {
+                <svg class="doc-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                  <path d="M14 2v6h6" />
+                </svg>
+              }
               <span class="filename">{{ doc.filename }}</span>
               <span class="meta">{{ doc.chunk_count }} chunks</span>
-              <button (click)="onDeleteDocument(doc.id)">Delete</button>
+              <button class="btn btn-danger btn-sm" (click)="onDeleteDocument(doc.id)">Delete</button>
             </li>
           } @empty {
-            <li class="empty">No documents uploaded yet.</li>
+            @if ((knowledge.uploadProgress() | keyvalue).length === 0) {
+              <li class="empty">No documents uploaded yet.</li>
+            }
           }
         </ul>
       </section>

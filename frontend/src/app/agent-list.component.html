@@ -1,26 +1,54 @@
 <section class="page">
-  <h2>Agent Studio</h2>
+  <div class="page-header">
+    <div>
+      <h2>Agent Studio</h2>
+      <p class="page-subtitle">Build and manage the AI employees answering your calls.</p>
+    </div>
+  </div>
 
   @if (agents.error()) {
-    <p class="error">{{ agents.error() }}</p>
+    <p class="error-banner">{{ agents.error() }}</p>
   }
 
+  <div class="toolbar">
+    <div class="field search-field">
+      <input
+        type="search"
+        [ngModel]="searchTerm()"
+        (ngModelChange)="searchTerm.set($event)"
+        placeholder="Search agents by name or persona…"
+        aria-label="Search agents"
+      />
+    </div>
+  </div>
+
   <ul class="agent-grid">
-    @for (agent of agents.agents(); track agent.id) {
+    @for (agent of filteredAgents(); track agent.id) {
       <li class="agent-card">
         <a [routerLink]="['/agents', agent.id]">
           <div class="agent-name">
             {{ agent.name }}
             @if (agent.is_default) {
-              <span class="badge">default</span>
+              <span class="badge badge-accent">Default</span>
             }
           </div>
           <div class="agent-voice">{{ agent.voice }}</div>
           <p class="agent-persona">{{ agent.persona || 'No persona set yet.' }}</p>
         </a>
+        <div class="agent-card-actions">
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm"
+            (click)="onDuplicate(agent)"
+            [disabled]="duplicating() === agent.id"
+          >
+            {{ duplicating() === agent.id ? 'Duplicating…' : 'Duplicate' }}
+          </button>
+          <button type="button" class="btn btn-danger btn-sm" (click)="requestDelete(agent)">Delete</button>
+        </div>
       </li>
     } @empty {
-      <li class="empty">No AI employees yet — create one below.</li>
+      <li class="empty">No AI employees match your search.</li>
     }
   </ul>
 
@@ -32,11 +60,22 @@
     </label>
     <label>
       Voice
-      <select name="newVoice" [(ngModel)]="newVoice">
-        @for (v of voiceOptions; track v) {
-          <option [value]="v">{{ v }}</option>
-        }
-      </select>
+      <div class="voice-row">
+        <select name="newVoice" [(ngModel)]="newVoice">
+          @for (v of voiceOptions; track v) {
+            <option [value]="v">{{ voiceMeta(v).label }} — {{ voiceMeta(v).localeName }}</option>
+          }
+        </select>
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm"
+          (click)="voicePreview.preview(newVoice)"
+          [disabled]="!voicePreview.supported"
+        >
+          {{ voicePreview.speakingVoiceId() === newVoice ? 'Playing…' : 'Preview' }}
+        </button>
+      </div>
+      <span class="voice-meta">{{ voiceMeta(newVoice).gender }} · approximate preview via browser TTS</span>
     </label>
     <label>
       Persona
@@ -47,8 +86,21 @@
         placeholder="Professional, empathetic, speaks Hindi and English."
       ></textarea>
     </label>
-    <button type="submit" [disabled]="creating()">
+    <button type="submit" class="btn btn-primary" [disabled]="creating()">
       {{ creating() ? 'Creating…' : 'Create' }}
     </button>
   </form>
 </section>
+
+<app-confirm-dialog
+  [open]="deleteTarget() !== null"
+  title="Delete agent?"
+  [message]="
+    deleteError() ||
+    (deleteTarget() ? 'This will permanently delete \'' + deleteTarget()!.name + '\'. This cannot be undone.' : '')
+  "
+  confirmLabel="Delete"
+  [busy]="deleting()"
+  (confirmed)="confirmDelete()"
+  (cancelled)="cancelDelete()"
+/>

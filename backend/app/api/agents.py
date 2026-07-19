@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.audit import logger as audit
 from app.auth.dependencies import CurrentUser, get_db, require_role
 from app.models.agent import Agent
+from app.models.appointment import Appointment
 from app.models.user import Role
 
 router = APIRouter(prefix="/api/agents", tags=["agents"])
@@ -112,3 +113,38 @@ def update_agent(
         resource_id=str(agent.id),
     )
     return agent
+
+
+@router.delete("/{agent_id}", status_code=204)
+def delete_agent(
+    agent_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_role(Role.ADMIN, Role.AGENT_BUILDER)),
+) -> None:
+    agent = db.execute(select(Agent).where(Agent.id == agent_id)).scalar_one_or_none()
+    if agent is None:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    if agent.is_default:
+        raise HTTPException(
+            status_code=409, detail="Cannot delete the default agent — set another agent as default first"
+        )
+
+    has_appointments = (
+        db.execute(select(Appointment.id).where(Appointment.agent_id == agent_id).limit(1)).first() is not None
+    )
+    if has_appointments:
+        raise HTTPException(
+            status_code=409, detail="Cannot delete an agent with booked appointments"
+        )
+
+    db.delete(agent)
+    db.flush()
+    audit.record(
+        db,
+        tenant_id=current_user.tenant_id,
+        actor_user_id=current_user.id,
+        action="agent.deleted",
+        resource_type="agent",
+        resource_id=str(agent_id),
+    )

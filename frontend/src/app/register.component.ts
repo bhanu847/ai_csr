@@ -33,7 +33,7 @@ export class RegisterComponent {
         this.adminEmail,
         this.adminPassword,
       );
-      await this.router.navigateByUrl('/agents');
+      await this.router.navigateByUrl('/dashboard');
     } catch {
       this.error.set('Could not create workspace — slug may already be taken.');
     } finally {

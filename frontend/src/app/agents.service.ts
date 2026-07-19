@@ -56,4 +56,9 @@ export class AgentsService {
     await this.refresh();
     return agent;
   }
+
+  async remove(agentId: string): Promise<void> {
+    await firstValueFrom(this.http.delete(`${API_URL}/${agentId}`));
+    await this.refresh();
+  }
 }

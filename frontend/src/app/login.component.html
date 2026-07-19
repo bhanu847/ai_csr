@@ -1,5 +1,9 @@
 <main class="auth-page">
   <form class="auth-form" (ngSubmit)="onSubmit()">
+    <div class="auth-brand">
+      <span class="brand-mark">AI</span>
+      <span class="brand-name">AI Workforce Platform</span>
+    </div>
     <h2>Log in</h2>
 
     <label>
@@ -21,7 +25,7 @@
       <p class="error">{{ error() }}</p>
     }
 
-    <button type="submit" [disabled]="submitting()">
+    <button type="submit" class="btn btn-primary" [disabled]="submitting()">
       {{ submitting() ? 'Logging in…' : 'Log in' }}
     </button>
 

@@ -1,0 +1,25 @@
+<section class="page">
+  <div class="page-header">
+    <div>
+      <h2>Dashboard</h2>
+      <p class="page-subtitle">Last 14 days across your workspace.</p>
+    </div>
+  </div>
+
+  @if (dashboard.error()) {
+    <p class="error-banner">{{ dashboard.error() }}</p>
+  }
+
+  @if (dashboard.summary(); as s) {
+    <div class="stat-grid">
+      <app-stat-tile label="Total agents" [value]="s.total_agents" />
+      <app-stat-tile label="Total calls" [value]="s.total_calls" />
+      <app-stat-tile label="Appointments booked" [value]="s.appointments_booked" accent="good" />
+      <app-stat-tile label="Calls in progress" [value]="s.calls_in_progress" accent="warning" />
+    </div>
+
+    <app-call-volume-chart [data]="s.call_volume" />
+  } @else if (!dashboard.error()) {
+    <p class="empty-state">Loading dashboard…</p>
+  }
+</section>

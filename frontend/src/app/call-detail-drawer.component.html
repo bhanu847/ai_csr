@@ -1,0 +1,54 @@
+@if (call; as c) {
+  <div class="drawer-scrim" (click)="closed.emit()">
+    <aside class="drawer" role="dialog" aria-modal="true" aria-label="Call detail" (click)="$event.stopPropagation()">
+      <div class="drawer-head">
+        <h3>Call detail</h3>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="closed.emit()" aria-label="Close">✕</button>
+      </div>
+
+      <dl class="detail-list">
+        <div class="detail-row">
+          <dt>Status</dt>
+          <dd>
+            <span
+              class="badge"
+              [class.badge-warning]="c.status === 'in_progress'"
+              [class.badge-good]="c.status === 'completed'"
+              [class.badge-critical]="c.status === 'failed'"
+            >
+              {{ c.status }}
+            </span>
+          </dd>
+        </div>
+        <div class="detail-row">
+          <dt>Agent</dt>
+          <dd>{{ c.agent_name || 'Unassigned' }}</dd>
+        </div>
+        <div class="detail-row">
+          <dt>From</dt>
+          <dd>{{ c.from_number }}</dd>
+        </div>
+        <div class="detail-row">
+          <dt>To</dt>
+          <dd>{{ c.to_number }}</dd>
+        </div>
+        <div class="detail-row">
+          <dt>Started</dt>
+          <dd>{{ c.started_at | date: 'medium' }}</dd>
+        </div>
+        <div class="detail-row">
+          <dt>Ended</dt>
+          <dd>{{ c.ended_at ? (c.ended_at | date: 'medium') : '—' }}</dd>
+        </div>
+        <div class="detail-row">
+          <dt>Duration</dt>
+          <dd>{{ duration(c) }}</dd>
+        </div>
+        <div class="detail-row">
+          <dt>Call SID</dt>
+          <dd class="mono">{{ c.twilio_call_sid }}</dd>
+        </div>
+      </dl>
+    </aside>
+  </div>
+}

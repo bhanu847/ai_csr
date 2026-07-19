@@ -27,7 +27,7 @@ export class LoginComponent {
     this.error.set(null);
     try {
       await this.auth.login(this.tenantSlug, this.email, this.password);
-      await this.router.navigateByUrl('/agents');
+      await this.router.navigateByUrl('/dashboard');
     } catch {
       this.error.set('Invalid workspace, email, or password.');
     } finally {

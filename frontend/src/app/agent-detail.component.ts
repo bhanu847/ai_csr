@@ -1,13 +1,18 @@
+import { KeyValuePipe } from '@angular/common';
 import { Component, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { Agent, AgentsService, VOICE_OPTIONS } from './agents.service';
 import { KnowledgeService } from './knowledge.service';
+import { VoiceCatalogEntry, voiceCatalogEntry } from './voice-catalog';
+import { VoicePreviewService } from './voice-preview.service';
+
+export type FileKind = 'pdf' | 'docx' | 'generic';
 
 @Component({
   selector: 'app-agent-detail',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, KeyValuePipe],
   templateUrl: './agent-detail.component.html',
   styleUrl: './agent-detail.component.css',
 })
@@ -16,6 +21,7 @@ export class AgentDetailComponent implements OnInit {
   readonly agent = signal<Agent | null>(null);
   readonly saving = signal(false);
   readonly loadError = signal<string | null>(null);
+  readonly dragActive = signal(false);
 
   agentId = '';
 
@@ -23,6 +29,7 @@ export class AgentDetailComponent implements OnInit {
     private readonly route: ActivatedRoute,
     private readonly agentsService: AgentsService,
     protected readonly knowledge: KnowledgeService,
+    protected readonly voicePreview: VoicePreviewService,
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -36,6 +43,10 @@ export class AgentDetailComponent implements OnInit {
       return;
     }
     await this.knowledge.refresh(this.agentId);
+  }
+
+  voiceMeta(voiceId: string): VoiceCatalogEntry {
+    return voiceCatalogEntry(voiceId);
   }
 
   async onSave(): Promise<void> {
@@ -61,14 +72,47 @@ export class AgentDetailComponent implements OnInit {
 
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (file) {
-      this.knowledge.upload(this.agentId, file);
+    if (input.files) {
+      this.uploadFiles(input.files);
     }
     input.value = '';
   }
 
+  onDragOver(event: DragEvent): void {
+    event.preventDefault();
+    this.dragActive.set(true);
+  }
+
+  onDragLeave(): void {
+    this.dragActive.set(false);
+  }
+
+  onDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.dragActive.set(false);
+    if (event.dataTransfer?.files) {
+      this.uploadFiles(event.dataTransfer.files);
+    }
+  }
+
   onDeleteDocument(documentId: string): void {
     this.knowledge.delete(this.agentId, documentId);
+  }
+
+  fileIcon(filename: string): FileKind {
+    const lower = filename.toLowerCase();
+    if (lower.endsWith('.pdf')) return 'pdf';
+    if (lower.endsWith('.docx')) return 'docx';
+    return 'generic';
+  }
+
+  private uploadFiles(fileList: FileList): void {
+    const allowed = Array.from(fileList).filter((file) => /\.(pdf|docx)$/i.test(file.name));
+    for (const file of allowed) {
+      this.knowledge.upload(this.agentId, file);
+    }
+    if (allowed.length === 0 && fileList.length > 0) {
+      this.knowledge.error.set('Only PDF and DOCX files are supported.');
+    }
   }
 }
