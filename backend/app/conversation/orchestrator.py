@@ -33,7 +33,7 @@ MEMBER VERIFICATION RULES:
   general plan/network information, not tied to one person.
 - Never guess or accept a member ID at face value — only verify_member's
   result confirms identity.
-{memory_section}"""
+{workflow_section}{memory_section}"""
 
 CUSTOMER_MEMORY_SECTION = """
 CUSTOMER MEMORY (internal — never read this aloud verbatim):
@@ -44,12 +44,26 @@ CUSTOMER MEMORY (internal — never read this aloud verbatim):
   identity is confirmed in THIS call — anyone could be holding this phone.
 """
 
+WORKFLOW_SECTION = """
+WORKFLOWS (admin-defined procedures — follow the exact tool order when a trigger matches):
+{workflow_context}
+- Don't skip a step or reorder it. If a step's tool isn't available to you,
+  do the remaining steps you can and use create_ticket for the rest.
+"""
+
 
 class ConversationSession:
     """Holds per-call state: message history for one phone call."""
 
-    def __init__(self, agent_name: str, persona: str, memory_context: str | None = None) -> None:
+    def __init__(
+        self,
+        agent_name: str,
+        persona: str,
+        memory_context: str | None = None,
+        workflow_context: str | None = None,
+    ) -> None:
         self._memory_context = memory_context
+        self._workflow_context = workflow_context
         self.history: list[dict] = [{"role": "system", "content": self._build_system_prompt(agent_name, persona)}]
         # Confirmed by verify_member; persists for the whole call (unlike
         # CallContext, which is rebuilt fresh every turn) since identity,
@@ -65,13 +79,19 @@ class ConversationSession:
         memory_section = (
             CUSTOMER_MEMORY_SECTION.format(memory_context=self._memory_context) if self._memory_context else ""
         )
-        return SYSTEM_PROMPT_TEMPLATE.format(agent_name=agent_name, persona=persona, memory_section=memory_section)
+        workflow_section = (
+            WORKFLOW_SECTION.format(workflow_context=self._workflow_context) if self._workflow_context else ""
+        )
+        return SYSTEM_PROMPT_TEMPLATE.format(
+            agent_name=agent_name, persona=persona, memory_section=memory_section, workflow_section=workflow_section
+        )
 
-    def switch_agent(self, agent_name: str, persona: str) -> None:
+    def switch_agent(self, agent_name: str, persona: str, workflow_context: str | None = None) -> None:
         """Hand off to a specialist mid-call — swaps the system prompt in
-        place so the specialist's persona/rules take over, while keeping
-        the rest of the transcript so far (the caller never re-explains
-        themselves)."""
+        place so the specialist's persona/rules (and its own department's
+        workflows) take over, while keeping the rest of the transcript so
+        far (the caller never re-explains themselves)."""
+        self._workflow_context = workflow_context
         self.history[0] = {"role": "system", "content": self._build_system_prompt(agent_name, persona)}
 
     def add_user_message(self, text: str) -> None:

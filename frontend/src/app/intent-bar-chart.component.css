@@ -1,0 +1,65 @@
+.chart-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 18px 20px;
+}
+
+.chart-head {
+  margin-bottom: 12px;
+}
+
+.chart-head h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.hbar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hbar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 160px) 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.hbar-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hbar-track {
+  background: var(--bg-hover);
+  border-radius: 4px;
+  height: 20px;
+  overflow: hidden;
+}
+
+.hbar-fill {
+  height: 100%;
+  min-width: 4px;
+  background: var(--accent);
+  border-radius: 0 4px 4px 0;
+}
+
+.hbar-fill.hovered {
+  filter: brightness(0.9);
+}
+
+.hbar-value {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  min-width: 20px;
+  text-align: right;
+}

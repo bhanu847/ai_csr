@@ -1,0 +1,34 @@
+<div class="chart-card">
+  <div class="chart-head">
+    <h3>Sentiment mix</h3>
+  </div>
+
+  @if (total() === 0) {
+    <p class="empty-state">Not enough data yet.</p>
+  } @else {
+    <div class="stack-bar" role="img" aria-label="Customer sentiment distribution across calls">
+      @for (seg of segments(); track seg.key) {
+        <div
+          class="stack-seg"
+          [class]="'sentiment-' + seg.key"
+          [class.hovered]="hovered() === seg.key"
+          [style.width.%]="seg.pct"
+          tabindex="0"
+          (pointerenter)="hovered.set(seg.key)"
+          (pointerleave)="hovered.set(null)"
+          (focus)="hovered.set(seg.key)"
+          (blur)="hovered.set(null)"
+        ></div>
+      }
+    </div>
+
+    <div class="legend">
+      @for (seg of segments(); track seg.key) {
+        <span class="legend-item" [class.hovered]="hovered() === seg.key">
+          <span class="legend-swatch" [class]="'sentiment-' + seg.key"></span>
+          {{ seg.label }} · {{ seg.count }} ({{ seg.pct | number: '1.0-0' }}%)
+        </span>
+      }
+    </div>
+  }
+</div>

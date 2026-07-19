@@ -1,0 +1,94 @@
+<section class="page">
+  <a routerLink="/workflows" class="back-link">&larr; Workflows</a>
+
+  @if (loadError()) {
+    <p class="error">{{ loadError() }}</p>
+  }
+
+  @if (workflow(); as wf) {
+    <form class="edit-form" (ngSubmit)="onSave()">
+      <h2>{{ wf.name }}</h2>
+
+      <label>
+        Name
+        <input name="name" [(ngModel)]="name" required />
+      </label>
+
+      <label>
+        Trigger
+        <input name="trigger" [(ngModel)]="triggerDescription" required placeholder="When should this run?" />
+      </label>
+
+      <label>
+        Department
+        <select name="department" [(ngModel)]="department">
+          <option value="">All departments</option>
+          @for (d of departmentOptions; track d) {
+            <option [value]="d">{{ d }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="checkbox-label">
+        <input type="checkbox" name="isActive" [(ngModel)]="isActive" />
+        Active
+      </label>
+
+      <div class="steps-section">
+        <div class="steps-head">
+          <h3>Steps</h3>
+          <button type="button" class="btn btn-secondary btn-sm" (click)="addStep()">+ Add step</button>
+        </div>
+
+        @if (steps.length === 0) {
+          <p class="hint">No steps yet — add the tools the AI should call, in order.</p>
+        } @else {
+          <ol class="step-list">
+            @for (step of steps; track $index; let i = $index) {
+              <li class="step-row">
+                <span class="step-number">{{ i + 1 }}</span>
+                <select [(ngModel)]="step.tool_name" [name]="'tool-' + i">
+                  @for (tool of workflows.availableTools(); track tool) {
+                    <option [value]="tool">{{ tool }}</option>
+                  }
+                </select>
+                <input
+                  [(ngModel)]="step.condition"
+                  [name]="'condition-' + i"
+                  placeholder="Condition (optional) — e.g. only if member is verified"
+                />
+                <div class="step-controls">
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm"
+                    [disabled]="i === 0"
+                    (click)="moveStep(i, -1)"
+                    aria-label="Move step up"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm"
+                    [disabled]="i === steps.length - 1"
+                    (click)="moveStep(i, 1)"
+                    aria-label="Move step down"
+                  >
+                    ↓
+                  </button>
+                  <button type="button" class="btn btn-danger btn-sm" (click)="removeStep(i)">Remove</button>
+                </div>
+              </li>
+            }
+          </ol>
+        }
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="btn btn-primary" [disabled]="saving()">
+          {{ saving() ? 'Saving…' : 'Save changes' }}
+        </button>
+      </div>
+    </form>
+  }
+</section>

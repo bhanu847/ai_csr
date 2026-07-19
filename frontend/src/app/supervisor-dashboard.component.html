@@ -1,0 +1,89 @@
+<section class="page">
+  <div class="page-header">
+    <div>
+      <h2>Live Operations</h2>
+      <p class="page-subtitle">Calls in progress right now. Refreshes every 4 seconds.</p>
+    </div>
+  </div>
+
+  @if (supervisor.error()) {
+    <p class="error-banner">{{ supervisor.error() }}</p>
+  }
+
+  @if (supervisor.liveCalls().length === 0) {
+    <p class="empty-state">No calls in progress right now.</p>
+  } @else {
+    <ul class="live-call-list">
+      @for (call of supervisor.liveCalls(); track call.id) {
+        <li class="live-call-card" [class.paused]="call.ai_paused">
+          <div class="live-call-head">
+            <div class="live-call-who">
+              <span class="live-call-customer">{{ call.customer_name || call.from_number }}</span>
+              <span class="badge badge-accent">{{ call.agent_name || 'Unassigned' }}</span>
+              @if (call.department && call.department !== 'general') {
+                <span class="badge badge-neutral">{{ call.department }}</span>
+              }
+              @if (call.ai_paused) {
+                <span class="badge badge-warning">AI paused</span>
+              }
+            </div>
+            @if (confidenceBand(call.latest_confidence); as band) {
+              <span
+                class="badge"
+                [class.badge-good]="band === 'good'"
+                [class.badge-warning]="band === 'warning'"
+                [class.badge-critical]="band === 'critical'"
+              >
+                {{ call.latest_confidence }}%
+              </span>
+            }
+          </div>
+
+          @if (call.latest_message_preview) {
+            <p class="live-call-preview">
+              <span class="preview-role">{{ call.latest_message_role }}:</span> {{ call.latest_message_preview }}
+            </p>
+          }
+
+          <div class="live-call-actions">
+            <button type="button" class="btn btn-secondary btn-sm" (click)="onMonitor(call)">Monitor</button>
+            <button
+              type="button"
+              class="btn btn-sm"
+              [class.btn-danger]="!call.ai_paused"
+              [class.btn-secondary]="call.ai_paused"
+              [disabled]="pendingAction() === call.id"
+              (click)="onPauseToggle(call)"
+            >
+              {{ call.ai_paused ? 'Resume AI' : 'Stop AI' }}
+            </button>
+            <button type="button" class="btn btn-ghost btn-sm" (click)="onOpenSuggestionBox(call.id)">
+              Send suggestion
+            </button>
+          </div>
+
+          @if (suggestingCallId() === call.id) {
+            <div class="suggestion-box">
+              <input
+                [(ngModel)]="suggestionText"
+                placeholder="e.g. Offer a callback, caller sounds rushed"
+                (keyup.enter)="onSendSuggestion(call.id)"
+              />
+              <button
+                type="button"
+                class="btn btn-primary btn-sm"
+                [disabled]="pendingAction() === call.id"
+                (click)="onSendSuggestion(call.id)"
+              >
+                Send
+              </button>
+              <button type="button" class="btn btn-ghost btn-sm" (click)="onCancelSuggestion()">Cancel</button>
+            </div>
+          }
+        </li>
+      }
+    </ul>
+  }
+</section>
+
+<app-call-detail-drawer [call]="monitoredCall()" (closed)="monitoredCall.set(null)" />

@@ -17,6 +17,7 @@ from app.conversation.customer_memory import build_memory_context
 from app.conversation.orchestrator import ConversationSession
 from app.conversation.persistence import persist_message
 from app.conversation.router import classify_department
+from app.conversation.workflows import get_active_workflows_context
 from app.db.session import tenant_session
 from app.models.agent import Agent
 from app.models.call import Call
@@ -37,6 +38,7 @@ class CallStartInfo:
     customer_id: uuid.UUID | None
     customer_name: str | None
     memory_context: str | None
+    workflow_context: str | None
 
 
 async def _send_audio(websocket: WebSocket, stream_sid: str, mulaw_audio: bytes) -> None:
@@ -63,15 +65,26 @@ def _load_call_start_info(tenant_id: uuid.UUID, agent_id: uuid.UUID, call_id: uu
                 customer_name = profile.name
                 memory_context = build_memory_context(db, profile)
 
+        workflow_context = get_active_workflows_context(db, tenant_id, agent.department or "general")
+
         db.expunge(agent)
         return CallStartInfo(
-            agent=agent, customer_id=customer_id, customer_name=customer_name, memory_context=memory_context
+            agent=agent,
+            customer_id=customer_id,
+            customer_name=customer_name,
+            memory_context=memory_context,
+            workflow_context=workflow_context,
         )
 
 
 def _persist_assistant_message(tenant_id: uuid.UUID, call_id: uuid.UUID, content: str) -> None:
     with tenant_session(tenant_id) as db:
         persist_message(db, tenant_id, call_id, MessageRole.ASSISTANT, content)
+
+
+def _load_workflow_context(tenant_id: uuid.UUID, department: str) -> str | None:
+    with tenant_session(tenant_id) as db:
+        return get_active_workflows_context(db, tenant_id, department)
 
 
 def _maybe_route(tenant_id: uuid.UUID, call_id: uuid.UUID, current_agent: Agent, transcript: str) -> Agent:
@@ -166,7 +179,10 @@ async def handle_media_stream(websocket: WebSocket) -> None:
                 agent = start_info.agent
                 customer_id = start_info.customer_id
                 session = ConversationSession(
-                    agent_name=agent.name, persona=agent.persona, memory_context=start_info.memory_context
+                    agent_name=agent.name,
+                    persona=agent.persona,
+                    memory_context=start_info.memory_context,
+                    workflow_context=start_info.workflow_context,
                 )
                 session.department = (agent.department or "general").lower()
                 # Name only, in the canned greeting — a known caller by
@@ -200,8 +216,11 @@ async def handle_media_stream(websocket: WebSocket) -> None:
                                 )
                                 agent = new_agent
                                 agent_id = new_agent.id
-                                session.switch_agent(agent.name, agent.persona)
                                 session.department = (agent.department or "general").lower()
+                                new_workflow_context = await asyncio.to_thread(
+                                    _load_workflow_context, tenant_id, session.department
+                                )
+                                session.switch_agent(agent.name, agent.persona, new_workflow_context)
 
                         session.add_user_message(transcript)
                         reply = await asyncio.to_thread(

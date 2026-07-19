@@ -32,6 +32,29 @@ export interface DashboardSummary {
   recent_conversations: RecentConversation[];
 }
 
+export interface IntentCount {
+  intent: string;
+  count: number;
+}
+
+export interface SentimentCount {
+  sentiment: string;
+  count: number;
+}
+
+export interface ResolutionTrendPoint {
+  date: string;
+  resolved: number;
+  escalated: number;
+  abandoned: number;
+}
+
+export interface AnalyticsSummary {
+  top_intents: IntentCount[];
+  sentiment_mix: SentimentCount[];
+  resolution_trend: ResolutionTrendPoint[];
+}
+
 const API_URL = 'http://localhost:8001/api/dashboard';
 
 @Injectable({ providedIn: 'root' })
@@ -39,6 +62,10 @@ export class DashboardService {
   readonly summary = signal<DashboardSummary | null>(null);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
+
+  readonly analytics = signal<AnalyticsSummary | null>(null);
+  readonly analyticsLoading = signal(false);
+  readonly analyticsError = signal<string | null>(null);
 
   constructor(private readonly http: HttpClient) {}
 
@@ -54,6 +81,21 @@ export class DashboardService {
       this.error.set('Could not load dashboard data. Is the backend running?');
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  async refreshAnalytics(days = 14): Promise<void> {
+    this.analyticsLoading.set(true);
+    try {
+      const analytics = await firstValueFrom(
+        this.http.get<AnalyticsSummary>(API_URL + '/analytics', { params: { days } }),
+      );
+      this.analytics.set(analytics);
+      this.analyticsError.set(null);
+    } catch {
+      this.analyticsError.set('Could not load analytics data. Is the backend running?');
+    } finally {
+      this.analyticsLoading.set(false);
     }
   }
 }

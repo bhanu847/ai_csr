@@ -92,6 +92,35 @@
         </div>
       }
 
+      @if (detail(); as d) {
+        @if (d.accuracy_score !== null) {
+          <div class="qa-card">
+            <h4>Quality score</h4>
+            <div class="qa-grid">
+              <div class="qa-stat">
+                <span class="qa-label">Accuracy</span>
+                <span class="qa-value">{{ d.accuracy_score | number: '1.0-0' }}%</span>
+              </div>
+              <div class="qa-stat">
+                <span class="qa-label">Compliance</span>
+                <span class="qa-value">{{ d.compliance_score | number: '1.0-0' }}%</span>
+              </div>
+              <div class="qa-stat">
+                <span class="qa-label">Empathy</span>
+                <span class="qa-value">{{ d.empathy_score | number: '1.0-0' }}%</span>
+              </div>
+              <div class="qa-stat">
+                <span class="qa-label">Resolution</span>
+                <span class="qa-value">{{ d.resolution_score | number: '1.0-0' }}%</span>
+              </div>
+            </div>
+            @if (d.qa_notes) {
+              <p class="qa-notes">{{ d.qa_notes }}</p>
+            }
+          </div>
+        }
+      }
+
       <div class="transcript-section">
         <h4>Transcript</h4>
 

@@ -20,6 +20,11 @@ export interface CallDetail extends Call {
   confidence_score: number | null;
   summary: string | null;
   resolution_status: 'resolved' | 'escalated' | 'abandoned' | null;
+  accuracy_score: number | null;
+  compliance_score: number | null;
+  empathy_score: number | null;
+  resolution_score: number | null;
+  qa_notes: string | null;
 }
 
 export interface Citation {

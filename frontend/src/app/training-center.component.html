@@ -1,0 +1,91 @@
+<section class="page">
+  <div class="page-header">
+    <div>
+      <h2>AI Training Center</h2>
+      <p class="page-subtitle">
+        Patterns across low-confidence answers, escalations, and low quality-review scores.
+      </p>
+    </div>
+    <button type="button" class="btn btn-primary" [disabled]="training.analyzing()" (click)="training.analyze()">
+      {{ training.analyzing() ? 'Analyzing…' : 'Run analysis' }}
+    </button>
+  </div>
+
+  @if (training.error()) {
+    <p class="error-banner">{{ training.error() }}</p>
+  }
+  @if (training.lastAnalysisMessage()) {
+    <p class="hint">{{ training.lastAnalysisMessage() }}</p>
+  }
+
+  <div class="view-tabs">
+    <button type="button" class="view-tab" [class.active]="statusFilter() === 'all'" (click)="statusFilter.set('all')">
+      All
+    </button>
+    <button type="button" class="view-tab" [class.active]="statusFilter() === 'new'" (click)="statusFilter.set('new')">
+      New
+    </button>
+    <button
+      type="button"
+      class="view-tab"
+      [class.active]="statusFilter() === 'acknowledged'"
+      (click)="statusFilter.set('acknowledged')"
+    >
+      Acknowledged
+    </button>
+    <button
+      type="button"
+      class="view-tab"
+      [class.active]="statusFilter() === 'dismissed'"
+      (click)="statusFilter.set('dismissed')"
+    >
+      Dismissed
+    </button>
+  </div>
+
+  @if (training.loading()) {
+    <p class="empty-state">Loading…</p>
+  } @else if (filteredInsights().length === 0) {
+    <p class="empty-state">
+      No insights yet. Click "Run analysis" to look for patterns across recent calls.
+    </p>
+  } @else {
+    <ul class="insight-list">
+      @for (insight of filteredInsights(); track insight.id) {
+        <li class="insight-card" [class.dismissed]="insight.status === 'dismissed'">
+          <div class="insight-head">
+            <span class="badge" [class.badge-accent]="insight.category === 'missing_knowledge'"
+              [class.badge-warning]="insight.category === 'prompt_improvement'"
+              [class.badge-neutral]="insight.category === 'workflow_improvement'"
+            >
+              {{ categoryLabel(insight.category) }}
+            </span>
+            <span
+              class="badge"
+              [class.badge-warning]="insight.status === 'new'"
+              [class.badge-good]="insight.status === 'acknowledged'"
+              [class.badge-neutral]="insight.status === 'dismissed'"
+            >
+              {{ insight.status }}
+            </span>
+          </div>
+          <h3 class="insight-title">{{ insight.title }}</h3>
+          <p class="insight-description">{{ insight.description }}</p>
+          <div class="insight-footer">
+            <span class="hint">
+              {{ insight.supporting_call_count }} supporting example(s) · {{ insight.created_at | date: 'medium' }}
+            </span>
+            @if (insight.status !== 'acknowledged') {
+              <button type="button" class="btn btn-secondary btn-sm" (click)="onAcknowledge(insight.id)">
+                Acknowledge
+              </button>
+            }
+            @if (insight.status !== 'dismissed') {
+              <button type="button" class="btn btn-ghost btn-sm" (click)="onDismiss(insight.id)">Dismiss</button>
+            }
+          </div>
+        </li>
+      }
+    </ul>
+  }
+</section>

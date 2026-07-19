@@ -1,0 +1,28 @@
+<div class="chart-card">
+  <div class="chart-head">
+    <h3>Top intents</h3>
+  </div>
+
+  @if (data.length === 0) {
+    <p class="empty-state">Not enough data yet.</p>
+  } @else {
+    <div class="hbar-list" role="img" aria-label="Top customer intents by call count">
+      @for (item of data; track item.intent) {
+        <div
+          class="hbar-row"
+          tabindex="0"
+          (pointerenter)="hovered.set(item.intent)"
+          (pointerleave)="hovered.set(null)"
+          (focus)="hovered.set(item.intent)"
+          (blur)="hovered.set(null)"
+        >
+          <span class="hbar-label" [title]="item.intent">{{ item.intent }}</span>
+          <div class="hbar-track">
+            <div class="hbar-fill" [class.hovered]="hovered() === item.intent" [style.width.%]="pct(item.count)"></div>
+          </div>
+          <span class="hbar-value">{{ item.count }}</span>
+        </div>
+      }
+    </div>
+  }
+</div>

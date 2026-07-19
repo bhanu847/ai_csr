@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Enum, Float, ForeignKey, String
+from sqlalchemy import Boolean, Enum, Float, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -66,3 +66,10 @@ class Call(Base):
     empathy_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     resolution_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     qa_notes: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    # Supervisor Command Center controls (Feature 10). Checked at the top
+    # of every turn — see app.conversation.agent.run_turn. No "joined" /
+    # "transferred" state here: those need real Twilio audio-bridging that
+    # isn't modeled in this codebase.
+    ai_paused: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    pending_suggestion: Mapped[str | None] = mapped_column(String(1000), nullable=True)

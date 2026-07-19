@@ -84,6 +84,53 @@
   color: var(--text-primary);
 }
 
+.qa-card {
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.qa-card h4 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.qa-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.qa-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.qa-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+.qa-value {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.qa-notes {
+  margin: 10px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
 .transcript-section {
   margin-top: 20px;
 }

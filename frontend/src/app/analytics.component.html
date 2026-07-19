@@ -1,0 +1,27 @@
+<section class="page">
+  <div class="page-header">
+    <div>
+      <h2>Analytics</h2>
+      <p class="page-subtitle">Last 14 days across your workspace.</p>
+    </div>
+  </div>
+
+  @if (dashboard.error() || dashboard.analyticsError()) {
+    <p class="error-banner">{{ dashboard.error() || dashboard.analyticsError() }}</p>
+  }
+
+  @if (dashboard.summary(); as s) {
+    <app-call-volume-chart [data]="s.call_volume" />
+  }
+
+  @if (dashboard.analytics(); as a) {
+    <div class="analytics-grid">
+      <app-intent-bar-chart [data]="a.top_intents" />
+      <app-sentiment-mix-chart [data]="a.sentiment_mix" />
+    </div>
+
+    <app-resolution-trend-chart [data]="a.resolution_trend" />
+  } @else if (!dashboard.analyticsError()) {
+    <p class="empty-state">Loading analytics…</p>
+  }
+</section>

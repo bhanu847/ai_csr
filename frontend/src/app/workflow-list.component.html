@@ -1,0 +1,79 @@
+<section class="page">
+  <div class="page-header">
+    <div>
+      <h2>Workflows</h2>
+      <p class="page-subtitle">
+        Step-by-step procedures the AI follows exactly when a caller's request matches the trigger.
+      </p>
+    </div>
+  </div>
+
+  @if (workflows.error()) {
+    <p class="error-banner">{{ workflows.error() }}</p>
+  }
+
+  <ul class="workflow-list">
+    @for (wf of workflows.workflows(); track wf.id) {
+      <li class="workflow-card">
+        <a [routerLink]="[wf.id]" class="workflow-main">
+          <div class="workflow-name">
+            {{ wf.name }}
+            <span class="badge" [class.badge-neutral]="!wf.department">{{ wf.department || 'all departments' }}</span>
+            <span class="badge" [class.badge-good]="wf.is_active" [class.badge-neutral]="!wf.is_active">
+              {{ wf.is_active ? 'active' : 'inactive' }}
+            </span>
+          </div>
+          <p class="workflow-trigger">When: {{ wf.trigger_description }}</p>
+          <p class="workflow-steps">{{ wf.steps.length }} step(s)</p>
+        </a>
+        <div class="workflow-actions">
+          <button type="button" class="btn btn-secondary btn-sm" (click)="onToggleActive(wf)">
+            {{ wf.is_active ? 'Deactivate' : 'Activate' }}
+          </button>
+          <button type="button" class="btn btn-danger btn-sm" (click)="requestDelete(wf)">Delete</button>
+        </div>
+      </li>
+    } @empty {
+      <li class="empty">No workflows yet.</li>
+    }
+  </ul>
+
+  <form class="create-form" (ngSubmit)="onCreate()">
+    <h3>Create workflow</h3>
+    <label>
+      Name
+      <input name="newName" [(ngModel)]="newName" required placeholder="Pharmacy Change Workflow" />
+    </label>
+    <label>
+      Trigger
+      <input
+        name="newTrigger"
+        [(ngModel)]="newTrigger"
+        required
+        placeholder="Caller wants to change their pharmacy"
+      />
+    </label>
+    <label>
+      Department
+      <select name="newDepartment" [(ngModel)]="newDepartment">
+        <option value="">All departments</option>
+        @for (d of departmentOptions; track d) {
+          <option [value]="d">{{ d }}</option>
+        }
+      </select>
+    </label>
+    <button type="submit" class="btn btn-primary" [disabled]="creating()">
+      {{ creating() ? 'Creating…' : 'Create' }}
+    </button>
+  </form>
+</section>
+
+<app-confirm-dialog
+  [open]="deleteTarget() !== null"
+  title="Delete workflow?"
+  [message]="deleteTarget() ? 'This will permanently delete \'' + deleteTarget()!.name + '\'. This cannot be undone.' : ''"
+  confirmLabel="Delete"
+  [busy]="deleting()"
+  (confirmed)="confirmDelete()"
+  (cancelled)="cancelDelete()"
+/>

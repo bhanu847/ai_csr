@@ -1,0 +1,89 @@
+<div class="chart-card">
+  <div class="chart-head">
+    <h3>Resolution trend</h3>
+    <button type="button" class="btn btn-ghost btn-sm" (click)="showTable.set(!showTable())">
+      {{ showTable() ? 'View chart' : 'View as table' }}
+    </button>
+  </div>
+
+  @if (!showTable()) {
+    <svg
+      #svgEl
+      class="chart-svg"
+      [attr.viewBox]="'0 0 ' + width + ' ' + height"
+      preserveAspectRatio="none"
+      (pointermove)="onPointerMove($event)"
+      (pointerleave)="onPointerLeave()"
+      role="img"
+      aria-label="Call resolution outcomes over time"
+    >
+      @for (grid of gridLines(); track grid.y) {
+        <line class="grid-line" x1="36" [attr.x2]="width - 12" [attr.y1]="grid.y" [attr.y2]="grid.y" />
+        <text class="grid-label" x="30" [attr.y]="grid.y + 3">{{ grid.value }}</text>
+      }
+
+      @for (bar of bars(); track bar.date; let i = $index) {
+        @for (seg of bar.segRects; track seg.key) {
+          <rect
+            class="bar-seg"
+            [class]="'seg-' + seg.key"
+            [class.hovered]="hoverIndex() === i"
+            [attr.x]="bar.x - bar.barWidth / 2"
+            [attr.y]="seg.y"
+            [attr.width]="bar.barWidth"
+            [attr.height]="seg.height"
+            rx="2"
+          />
+        }
+      }
+
+      @for (tick of xTicks(); track tick.date) {
+        <text class="x-label" [attr.x]="tick.x" [attr.y]="height - 6">{{ formatDate(tick.date) }}</text>
+      }
+
+      @if (hovered(); as h) {
+        <line class="crosshair" [attr.x1]="h.x" [attr.x2]="h.x" y1="16" [attr.y2]="baselineY" />
+
+        <g [attr.transform]="'translate(' + tooltipX() + ',16)'">
+          <rect class="tooltip-box" width="100" height="66" rx="6" />
+          <text class="tooltip-date" x="10" y="16">{{ formatDate(h.date) }}</text>
+          <line class="key-line seg-resolved" x1="10" y1="27" x2="18" y2="27" />
+          <text class="tooltip-row" x="24" y="30">Resolved {{ h.resolved }}</text>
+          <line class="key-line seg-escalated" x1="10" y1="41" x2="18" y2="41" />
+          <text class="tooltip-row" x="24" y="44">Escalated {{ h.escalated }}</text>
+          <line class="key-line seg-abandoned" x1="10" y1="55" x2="18" y2="55" />
+          <text class="tooltip-row" x="24" y="58">Abandoned {{ h.abandoned }}</text>
+        </g>
+      }
+    </svg>
+
+    <div class="legend">
+      <span class="legend-item"><span class="legend-swatch seg-resolved"></span>Resolved</span>
+      <span class="legend-item"><span class="legend-swatch seg-escalated"></span>Escalated</span>
+      <span class="legend-item"><span class="legend-swatch seg-abandoned"></span>Abandoned</span>
+    </div>
+  } @else {
+    <div class="table-wrap">
+      <table class="volume-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Resolved</th>
+            <th>Escalated</th>
+            <th>Abandoned</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (point of bars(); track point.date) {
+            <tr>
+              <td>{{ formatDate(point.date) }}</td>
+              <td>{{ point.resolved }}</td>
+              <td>{{ point.escalated }}</td>
+              <td>{{ point.abandoned }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

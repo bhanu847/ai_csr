@@ -12,7 +12,9 @@ from app.models.pharmacy import Pharmacy
 from app.models.tenant import Tenant
 from app.models.ticket import Ticket
 from app.models.tool_execution_log import ToolExecutionLog
+from app.models.training_insight import TrainingInsight
 from app.models.user import User
+from app.models.workflow import Workflow, WorkflowStep
 
 __all__ = [
     "Agent",
@@ -30,5 +32,8 @@ __all__ = [
     "Tenant",
     "Ticket",
     "ToolExecutionLog",
+    "TrainingInsight",
     "User",
+    "Workflow",
+    "WorkflowStep",
 ]

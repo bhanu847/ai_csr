@@ -1,0 +1,81 @@
+.hint {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin: -8px 0 16px;
+}
+
+.view-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 4px 0 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.view-tab {
+  padding: 10px 4px;
+  margin-right: 20px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.view-tab.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent);
+}
+
+.insight-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.insight-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 16px 18px;
+}
+
+.insight-card.dismissed {
+  opacity: 0.6;
+}
+
+.insight-head {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.insight-title {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.insight-description {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.insight-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.insight-footer .hint {
+  margin: 0;
+  flex: 1;
+}

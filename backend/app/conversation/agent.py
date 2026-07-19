@@ -2,9 +2,12 @@ import json
 import logging
 import time
 
+from sqlalchemy import select
+
 from app.conversation.orchestrator import ConversationSession
 from app.conversation.persistence import persist_message, persist_tool_execution
 from app.llm.client import chat_completion
+from app.models.call import Call
 from app.models.conversation_message import MessageRole
 from app.tools.context import CallContext
 from app.tools.department_tools import tools_for_department
@@ -13,6 +16,8 @@ from app.tools.handlers import build_tool_handlers
 logger = logging.getLogger("agent")
 
 MAX_TOOL_ROUNDS = 5
+
+HOLD_MESSAGE = "One moment — I'm connecting you with a member of our team."
 
 
 def _persist_assistant_reply(ctx: CallContext, reply: str) -> None:
@@ -33,6 +38,28 @@ def run_turn(session: ConversationSession, ctx: CallContext) -> str:
     # Don't leak a prior turn's search confidence/citations into this one.
     ctx.last_confidence = None
     ctx.last_citations = None
+
+    if ctx.call_id is not None:
+        call = ctx.db.execute(select(Call).where(Call.id == ctx.call_id)).scalar_one_or_none()
+        if call is not None:
+            # A supervisor hit "Stop AI" (Feature 10) — skip the LLM
+            # entirely rather than let it keep talking over a handoff.
+            if call.ai_paused:
+                session.add_assistant_message(HOLD_MESSAGE)
+                _persist_assistant_reply(ctx, HOLD_MESSAGE)
+                return HOLD_MESSAGE
+
+            # A supervisor sent live guidance — fold it in as a one-time
+            # steer, then consume it so it doesn't repeat every turn.
+            if call.pending_suggestion:
+                session.history.append(
+                    {
+                        "role": "system",
+                        "content": f"SUPERVISOR SUGGESTION (apply this to your next reply): {call.pending_suggestion}",
+                    }
+                )
+                call.pending_suggestion = None
+
     handlers = build_tool_handlers(ctx)
     # Scoped to the active department (see app.tools.department_tools) — a
     # specialist agent literally can't be offered tools outside its remit,

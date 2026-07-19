@@ -35,6 +35,11 @@ class CallDetailResponse(CallResponse):
     confidence_score: float | None
     summary: str | None
     resolution_status: ResolutionStatus | None
+    accuracy_score: float | None
+    compliance_score: float | None
+    empathy_score: float | None
+    resolution_score: float | None
+    qa_notes: str | None
 
 
 class Citation(BaseModel):
@@ -131,6 +136,11 @@ def get_call(call_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
         "confidence_score": row.Call.confidence_score,
         "summary": row.Call.summary,
         "resolution_status": row.Call.resolution_status,
+        "accuracy_score": row.Call.accuracy_score,
+        "compliance_score": row.Call.compliance_score,
+        "empathy_score": row.Call.empathy_score,
+        "resolution_score": row.Call.resolution_score,
+        "qa_notes": row.Call.qa_notes,
     }
 
 

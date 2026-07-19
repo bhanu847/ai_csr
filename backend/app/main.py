@@ -10,7 +10,10 @@ from app.api.calls import router as calls_router
 from app.api.customers import router as customers_router
 from app.api.dashboard import router as dashboard_router
 from app.api.knowledge import router as knowledge_router
+from app.api.supervisor import router as supervisor_router
+from app.api.training import router as training_router
 from app.api.twilio_webhooks import router as twilio_router
+from app.api.workflows import router as workflows_router
 from app.config import settings
 from app.telephony.media_stream_handler import handle_media_stream
 
@@ -32,6 +35,9 @@ app.include_router(appointments_router)
 app.include_router(knowledge_router)
 app.include_router(dashboard_router)
 app.include_router(customers_router)
+app.include_router(training_router)
+app.include_router(workflows_router)
+app.include_router(supervisor_router)
 app.include_router(twilio_router)
 
 
