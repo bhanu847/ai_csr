@@ -69,7 +69,10 @@ pip install -r requirements.txt
 # 4. Database
 alembic upgrade head
 
-# 5. Start the backend
+# 5. (optional) run the test suite against your configured DB
+python -m pytest tests/
+
+# 6. Start the backend
 uvicorn app.main:app --port 8001 --reload
 ```
 
@@ -156,5 +159,12 @@ Register a tenant/admin in the dashboard, create an agent in Agent Studio (voice
 - [ ] Azure OpenAI resource created, a chat model deployed, `AZURE_OPENAI_*` vars set
 - [ ] Azure AI Speech resource created, `AZURE_SPEECH_KEY`/`AZURE_SPEECH_REGION` set
 - [ ] `JWT_SECRET` set to a real random value (app refuses to start otherwise)
+- [ ] `python -m pytest tests/` passes (optional, but a fast way to confirm Postgres/RLS/migrations are actually working before chasing a harder-to-diagnose runtime issue)
 - [ ] Backend running (`uvicorn app.main:app --port 8001`), frontend running (`npm start`)
 - [ ] *(only for real phone calls)* Twilio number bought, webhooks pointed at your public URL, number linked to a tenant in the DB
+
+---
+
+## 7. What this setup does and doesn't get you
+
+Following every step above gets you a **running application** — it does not by itself mean the AI performs well on real healthcare calls. This project deliberately tracks that distinction; see `README.md` §12–13 and `docs/validation/evidence_requirements.md` for exactly what's been verified versus what's still unknown.

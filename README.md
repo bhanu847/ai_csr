@@ -2,7 +2,7 @@
 
 An AI voice customer-service platform for healthcare/PBM (pharmacy benefit manager) support. Callers talk to an AI agent over a real phone call; the AI answers from your uploaded documents, looks up real member/claim/pharmacy data, hands off between specialist agents, and everything is recorded, scored, and analyzable afterward.
 
-This document covers: how it's built, what database it uses, how each feature works and where its data comes from/goes, what it costs to run, how to run it locally, and how to deploy it for a real phone number. For a pure checklist of accounts/keys/software, see [`SETUP.md`](SETUP.md).
+This document covers: how it's built, what database it uses, how each feature works and where its data comes from/goes, what it costs to run, how to run it locally, and how to deploy it for a real phone number. For a pure checklist of accounts/keys/software, see [`SETUP.md`](SETUP.md). For what's actually been proven to work versus what's built-but-unverified, see [§12](#12-pbm-data-architecture) and [§13](#13-evaluation--validation-framework), and `docs/validation/evidence_requirements.md` — this project tracks every capability claim as `VERIFIED` / `BUILT-UNVERIFIED` / `NOT IMPLEMENTED` / `UNKNOWN`, on purpose, rather than describing everything as if it were finished.
 
 ---
 
@@ -121,7 +121,7 @@ Every knowledge-grounded reply records which document/page it came from (`conver
 Callers are recognized by phone number (`customer_profiles`). Returning callers get greeted by name, and the AI gets a short internal briefing on prior calls (intent + resolution only) — with a hard rule never to recite medical/claims specifics until identity is re-confirmed *in that call*.
 
 ### PBM / healthcare tools
-`verify_member`, `check_claim_status`, `get_benefits`, `search_formulary`, `find_pharmacy`, `create_ticket`, `schedule_callback`, `send_email`, `update_customer`, plus `search_documents`, `schedule_appointment`, `escalate_to_human`. Claim/benefit lookups are hard-gated behind `verify_member` (member ID + DOB + ZIP) — no PHI is revealed pre-verification. Backed by real tables (`members`, `claims`, `drugs`, `pharmacies`); seed sample data with `backend/scripts/seed_pbm_data.py`. (`send_email` currently only records the intent to an audit log — no email provider is wired up yet; see [§8 Known gaps](#8-known-gaps-by-design-not-oversight).)
+`verify_member`, `check_claim_status`, `get_benefits`, `search_formulary`, `find_pharmacy`, `create_ticket`, `schedule_callback`, `send_email`, `update_customer`, plus `search_documents`, `schedule_appointment`, `escalate_to_human`. Claim/benefit lookups are hard-gated behind `verify_member` (member ID + DOB + ZIP) — no PHI is revealed pre-verification. The five PBM-data tools (`verify_member`/`check_claim_status`/`get_benefits`/`search_formulary`/`find_pharmacy`) sit behind a provider interface, not hardcoded Postgres queries — see [§12](#12-pbm-data-architecture). Seed sample data with `backend/scripts/seed_pbm_data.py`. (`send_email` currently only records the intent to an audit log — no email provider is wired up yet; see [§11 Known gaps](#11-known-gaps-by-design-not-oversight).)
 
 ### Multi-Agent routing
 Configure multiple agents with a `department` (Agent Studio). On a caller's first utterance, an intent classifier decides whether to hand off from the general agent to a specialist — invisibly, mid-call, keeping the transcript intact. Each department only gets its own relevant tools.
@@ -252,6 +252,16 @@ uvicorn app.main:app --port 8001 --reload
 python scripts/seed_pbm_data.py <your-tenant-slug>
 ```
 
+### Running tests
+
+```bash
+cd backend
+venv/Scripts/activate
+python -m pytest tests/
+```
+
+These are integration tests against a real (throwaway, self-cleaning) tenant in your configured Postgres — `DATABASE_URL`/`MIGRATIONS_DATABASE_URL` must point at a real, migrated database, same as running the app. See [§12](#12-pbm-data-architecture) and [§13](#13-evaluation--validation-framework) for what these tests do and don't prove.
+
 ### Frontend
 
 ```bash
@@ -329,3 +339,37 @@ Once all five are in place, dialing the number really does ring through to the A
 - **Real concurrent-call capacity is unverified** — the code-level thread/connection-pool ceilings are fixed, but actual throughput depends on your Azure OpenAI/Speech quota and Twilio account limits, and hasn't been load-tested (see [§6](#6-concurrency--scaling)).
 - **Confidence thresholds (90/70) aren't re-validated** for the current embedding model — see [§4 Confidence Engine](#confidence-engine).
 - **Existing agents with a Piper voice name** (e.g. `en_US-amy-medium`) still work — `app/speech/tts.py` maps the four previously-used Piper names to a similar Azure neural voice — but any *other* old value would need to be updated to a real Azure voice name in Agent Studio.
+- **No real PBM/healthcare-system integration exists.** `members`/`claims`/`drugs`/`pharmacies` are seeded development data, not a connection to any real claims/eligibility/formulary system. The tool layer is built to make a real integration a swappable adapter rather than a rewrite — see [§12](#12-pbm-data-architecture) — but no such adapter has been written, because no real external system has been connected to yet.
+- **No domain-validated evaluation results exist.** The evaluation framework (`app/evaluation/`) is tested and confirmed to work mechanically, but every scenario it's been run against so far is a small, hand-written fixture set that exists to prove the harness works — not a healthcare/PBM expert's assessment of real call correctness. See [§13](#13-evaluation--validation-framework).
+
+---
+
+## 12. PBM data architecture
+
+**Status: interface + seeded adapter VERIFIED (automated tests). Real external integration NOT IMPLEMENTED.**
+
+The five PBM-data tools (`verify_member`, `check_claim_status`, `get_benefits`, `search_formulary`, `find_pharmacy`) don't embed SQL directly. They call a `PBMProvider` interface (`app/pbm/provider.py`) — plain-data records (`MemberRecord`, `ClaimRecord`, `FormularyEntry`, `PharmacyRecord`), not SQLAlchemy models — so the tool/agent layer never knows or needs to know whether the data behind it is the seeded Postgres tables, a REST API, a FHIR server, or a real customer's claims platform.
+
+Two implementations exist:
+- `PostgresPBMProvider` (`app/pbm/postgres_provider.py`) — the seeded dev/test data described in §3/§4. This is the **only** backend this project has today; it is a development fixture, not a PBM integration.
+- `MockPBMProvider` (`app/pbm/mock_provider.py`) — a fixed in-memory fake with zero Postgres dependency, used only in `backend/tests/pbm/test_substitutability.py` to prove the tool layer genuinely depends on the interface, not on Postgres specifically.
+
+**What's actually been tested** (`backend/tests/pbm/`, 18 tests): the seeded adapter produces correct results against a real throwaway tenant (verification success/failure, claim ordering and filtering, benefits data, formulary search, in-network pharmacy filtering); the same unmodified tool-handler code works correctly against `MockPBMProvider`; the identity-verification gate on PHI-protected tools holds regardless of which provider is plugged in.
+
+**What that does and doesn't prove:** it proves the *boundary* is real — a third, real-system-backed implementation can be written without touching `app/tools/handlers.py`. It says nothing about whether a real external system fits this exact interface shape without changes (pagination, retries, richer error handling, etc. may all differ from a real system's needs), because no real integration has been attempted yet.
+
+## 13. Evaluation & validation framework
+
+**Status: harness mechanics VERIFIED. Domain/accuracy validation UNKNOWN — no real scenarios have been run.**
+
+`app/evaluation/` is a framework for scoring the AI's behavior against defined expected outcomes: `schema.py` (scenario/expected-behavior/observed-behavior data model), `scoring.py` (five dimensions — tool selection, answer content, escalation, verification gating, technical reliability), `runner.py` (`RealPipelineExecutor`, which drives a scenario through the actual conversation pipeline and reads results back from `tool_execution_logs` — the same persistence path a real call already writes to), `report.py` (aggregation and text/JSON reporting), `scenario_loader.py` (parses a domain expert's JSON scenario file into the same schema).
+
+**What's actually been tested** (`backend/tests/evaluation/`, 19 tests): the scorer correctly passes scenarios that meet their expectations *and* correctly fails ones that don't (verified with a deliberately-scripted failure case, not just happy-path scenarios); aggregation and reporting produce correct counts; the framework structurally refuses to summarize test-fixture results and real-scenario results together (`MixedFixtureAndRealResultsError`); the scenario loader correctly parses a valid file and rejects malformed ones with clear errors.
+
+**What that does and doesn't prove:** all of this used `FakeExecutor` — scripted, in-memory responses, zero LLM or live-Azure involvement. It proves the scoring/aggregation/reporting *mechanics* are correct. It proves nothing about the AI's actual accuracy, because `RealPipelineExecutor` has never been run (blocked on Azure OpenAI credentials) and no healthcare/PBM domain expert has authored a real scenario yet.
+
+**The path to real evidence:**
+1. `docs/validation/real_call_procedure.md` — the exact runbook for the first real Azure-backed phone call, ready to execute the moment credentials exist.
+2. `docs/validation/scenario_authoring_guide.md` + `app/evaluation/scenario_template.json` — the format for a domain expert to author real scenarios, with zero Python required.
+3. `docs/validation/evidence_requirements.md` — for every capability claim (accuracy, grounding, PHI safety, tool correctness, escalation, resolution/containment, latency, reliability, cost, customer demand), exactly what evidence would need to exist before that claim is allowed to be made. Every row is honestly `UNKNOWN` today.
+4. `docs/business/pilot_validation_plan.md` — ideal customer profile, pilot structure, and measurement plan for finding out whether a real organization will pay for this. No prospect has been contacted; this is preparation, not evidence of demand.
