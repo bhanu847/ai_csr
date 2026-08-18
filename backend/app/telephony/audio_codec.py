@@ -1,3 +1,5 @@
+import audioop  # audioop-lts backport — stdlib audioop was removed in 3.13
+
 import numpy as np
 
 # Python's stdlib `audioop` (which used to do this) was removed in 3.13,
@@ -31,3 +33,14 @@ def mulaw8k_to_pcm16_16k_bytes(mulaw: bytes) -> bytes:
     pcm_8k = mulaw_to_pcm16(mulaw)
     pcm_16k = upsample_8k_to_16k(pcm_8k)
     return pcm_16k.tobytes()
+
+
+def pcm16_to_mulaw8k(pcm16: bytes, sample_rate: int) -> bytes:
+    """Downsample 16-bit mono PCM at `sample_rate` to 8kHz and encode as
+    G.711 mu-law, the wire format Twilio Media Streams expects. Uses
+    audioop-lts (not the hand-rolled path above) since ratecv applies an
+    anti-aliasing filter that naive linear interpolation doesn't — that
+    matters going the other direction, downsampling TTS output."""
+    if sample_rate != 8000:
+        pcm16, _ = audioop.ratecv(pcm16, 2, 1, sample_rate, 8000, None)
+    return audioop.lin2ulaw(pcm16, 2)

@@ -21,6 +21,7 @@
     </div>
 
     <app-resolution-trend-chart [data]="a.resolution_trend" />
+    <app-sentiment-trend-chart [data]="a.sentiment_trend" />
   } @else if (!dashboard.analyticsError()) {
     <p class="empty-state">Loading analytics…</p>
   }

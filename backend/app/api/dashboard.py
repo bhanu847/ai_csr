@@ -67,10 +67,19 @@ class ResolutionTrendPoint(BaseModel):
     abandoned: int
 
 
+class SentimentTrendPoint(BaseModel):
+    date: date
+    positive: int
+    neutral: int
+    negative: int
+    frustrated: int
+
+
 class AnalyticsSummary(BaseModel):
     top_intents: list[IntentCount]
     sentiment_mix: list[SentimentCount]
     resolution_trend: list[ResolutionTrendPoint]
+    sentiment_trend: list[SentimentTrendPoint]
 
 
 @router.get("/summary", response_model=DashboardSummary)
@@ -199,4 +208,29 @@ def get_analytics(days: int = 14, db: Session = Depends(get_db)) -> AnalyticsSum
         for offset in range(days)
     ]
 
-    return AnalyticsSummary(top_intents=top_intents, sentiment_mix=sentiment_mix, resolution_trend=resolution_trend)
+    sentiment_trend_rows = db.execute(
+        select(day_column.label("day"), Call.sentiment, func.count().label("count"))
+        .where(Call.sentiment.is_not(None), in_range)
+        .group_by(day_column, Call.sentiment)
+    ).all()
+    sentiment_counts_by_day: dict[date, dict[str, int]] = {}
+    for row in sentiment_trend_rows:
+        sentiment_counts_by_day.setdefault(row.day, {})[row.sentiment] = row.count
+
+    sentiment_trend = [
+        SentimentTrendPoint(
+            date=(day := range_start + timedelta(days=offset)),
+            positive=sentiment_counts_by_day.get(day, {}).get("positive", 0),
+            neutral=sentiment_counts_by_day.get(day, {}).get("neutral", 0),
+            negative=sentiment_counts_by_day.get(day, {}).get("negative", 0),
+            frustrated=sentiment_counts_by_day.get(day, {}).get("frustrated", 0),
+        )
+        for offset in range(days)
+    ]
+
+    return AnalyticsSummary(
+        top_intents=top_intents,
+        sentiment_mix=sentiment_mix,
+        resolution_trend=resolution_trend,
+        sentiment_trend=sentiment_trend,
+    )

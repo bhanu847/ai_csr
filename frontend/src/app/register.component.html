@@ -13,7 +13,14 @@
 
     <label>
       Workspace slug
-      <input name="tenantSlug" [(ngModel)]="tenantSlug" required placeholder="acme-health" />
+      <input
+        name="tenantSlug"
+        [(ngModel)]="tenantSlug"
+        required
+        pattern="[a-z0-9]+(-[a-z0-9]+)*"
+        placeholder="acme-health"
+      />
+      <small>Lowercase letters, numbers, and hyphens only (e.g. "acme-health") — no spaces or capitals.</small>
     </label>
 
     <label>

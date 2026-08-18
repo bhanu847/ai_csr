@@ -13,10 +13,12 @@ This document covers: how it's built, what database it uses, how each feature wo
 | Backend | Python 3.14, FastAPI, SQLAlchemy 2.0, Alembic (migrations) |
 | Database | **PostgreSQL** with the **pgvector** extension (for semantic search) |
 | Frontend | Angular 21 (standalone components, signals) |
-| Voice | Twilio (phone number + real-time audio streaming over WebSocket) |
-| Speech | Azure Cognitive Services Speech (speech-to-text and text-to-speech) |
-| AI | Azure OpenAI (chat completions + text embeddings) |
+| Voice | Twilio (phone number + real-time audio streaming over WebSocket) — the one paid piece; see note below |
+| Speech | **faster-whisper** (speech-to-text, open source, runs locally) + **Piper** (text-to-speech, open source, runs locally) |
+| AI | **Ollama** (open source, self-hosted) — chat completions (`qwen3:8b` by default) + text embeddings (`nomic-embed-text`) via Ollama's OpenAI-compatible API |
 | Auth | JWT (PyJWT), bcrypt password hashing |
+
+**Why Twilio is the one thing that isn't free**: getting a real phone number that a caller can dial, and having that call reach your server, always goes through the public telephone network (PSTN) — there is no open-source way around that; some paid provider (Twilio, a SIP trunk, etc.) is unavoidable if you want real inbound/outbound calls. Twilio has a free trial for development. Everything else in the stack — the LLM, embeddings, speech-to-text, text-to-speech — runs locally on your own hardware for $0, no API keys, no per-call cost.
 
 **Why PostgreSQL specifically, not "a database" in the abstract**: two features depend on Postgres-specific capabilities and won't work on MySQL/SQLite/etc. without rework —
 1. **pgvector** stores document-chunk embeddings and does the cosine-similarity search that powers the knowledge base and confidence scoring.
@@ -143,7 +145,31 @@ Live list of in-progress calls (polls every 4s), each call's most recent turn an
 
 ## 5. Running it locally
 
-**Prerequisites**: Python 3.14, Node.js + npm, PostgreSQL with the `pgvector` extension available, an Azure OpenAI resource, an Azure Speech resource, a Twilio account (for real calls — not required just to browse the dashboard).
+**Prerequisites**: Python 3.14, Node.js + npm, PostgreSQL with the `pgvector` extension available, [Ollama](https://ollama.com) installed and running, a Twilio account (for real calls — not required just to browse the dashboard).
+
+### Install Ollama and pull the models
+
+```bash
+# https://ollama.com/download
+ollama pull qwen3:8b            # chat + tool-calling model
+ollama pull nomic-embed-text    # embedding model
+ollama serve                    # runs on http://localhost:11434 (often already running as a service)
+```
+
+### Download Piper voice models
+
+```bash
+cd backend
+mkdir voices && cd voices
+python -m piper.download_voices en_US-amy-medium
+python -m piper.download_voices en_US-ryan-medium
+python -m piper.download_voices en_GB-alan-medium
+python -m piper.download_voices hi_IN-rohan-medium
+cd ..
+```
+(Only `PIPER_DEFAULT_VOICE` is required to get calls working; download the rest only if you'll assign them to agents in Agent Studio.)
+
+**If a voice fails to load with `onnxruntime...INVALID_PROTOBUF: ...Protobuf parsing failed`**: the `.onnx` file downloaded incomplete/corrupted — `piper.download_voices` doesn't verify download integrity, so this happens on a flaky connection. Delete the two files for that voice from your voices directory and re-run the download command (or retry a couple of times); a good download of a "medium" voice is ~60MB.
 
 ### Backend
 
@@ -154,18 +180,25 @@ venv/Scripts/activate          # venv\Scripts\activate.bat on plain cmd
 pip install -r requirements.txt
 ```
 
+The first `faster-whisper` transcription downloads its model (from Hugging Face) automatically — no separate install step, but it needs internet access once.
+
 Create `backend/.env` (see `backend/.env.example` for the full template):
 
 ```
 DATABASE_URL=postgresql+psycopg://app_user:CHANGE_ME@localhost:5432/ai_workforce
 MIGRATIONS_DATABASE_URL=postgresql+psycopg://postgres:CHANGE_ME@localhost:5432/ai_workforce
 JWT_SECRET=<long random string>
-AZURE_OPENAI_ENDPOINT=...
-AZURE_OPENAI_API_KEY=...
-AZURE_OPENAI_DEPLOYMENT=...
-AZURE_OPENAI_EMBEDDING_DEPLOYMENT=...
-AZURE_SPEECH_KEY=...
-AZURE_SPEECH_REGION=...
+LLM_BASE_URL=http://localhost:11434/v1
+LLM_API_KEY=ollama
+LLM_MODEL=qwen3:8b
+EMBEDDING_MODEL=nomic-embed-text
+EMBEDDING_DIM=768
+STT_LANGUAGE=en
+WHISPER_MODEL_SIZE=base
+WHISPER_DEVICE=cpu
+WHISPER_COMPUTE_TYPE=int8
+PIPER_VOICES_DIR=./voices
+PIPER_DEFAULT_VOICE=en_US-amy-medium
 TWILIO_ACCOUNT_SID=...
 TWILIO_AUTH_TOKEN=...
 PUBLIC_SERVER_URL=...           # see deployment section — must be a real public HTTPS URL to take real calls
@@ -178,6 +211,8 @@ Run migrations, then start the API:
 alembic upgrade head
 uvicorn app.main:app --port 8001 --reload
 ```
+
+**If you're upgrading an existing deployment** that was running the Azure stack: the migration that switches embedding dimension from 1536 (Azure) to 768 (nomic-embed-text) deletes existing `knowledge_chunks`/`knowledge_documents` rows, since embeddings from one model can't be reinterpreted by another — re-upload documents in Agent Studio afterward. It also remaps each agent's `voice` from its old Azure neural-voice name to the closest open-source Piper voice.
 
 (Optional) seed sample PBM data so the healthcare tools have something to look up:
 

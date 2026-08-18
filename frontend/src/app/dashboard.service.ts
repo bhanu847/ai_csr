@@ -49,10 +49,19 @@ export interface ResolutionTrendPoint {
   abandoned: number;
 }
 
+export interface SentimentTrendPoint {
+  date: string;
+  positive: number;
+  neutral: number;
+  negative: number;
+  frustrated: number;
+}
+
 export interface AnalyticsSummary {
   top_intents: IntentCount[];
   sentiment_mix: SentimentCount[];
   resolution_trend: ResolutionTrendPoint[];
+  sentiment_trend: SentimentTrendPoint[];
 }
 
 const API_URL = 'http://localhost:8001/api/dashboard';

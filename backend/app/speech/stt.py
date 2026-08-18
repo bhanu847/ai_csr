@@ -1,31 +1,35 @@
-import azure.cognitiveservices.speech as speechsdk
+import numpy as np
+from faster_whisper import WhisperModel
 
 from app.config import settings
+
+_model: WhisperModel | None = None
+
+
+def _get_model() -> WhisperModel:
+    global _model
+    if _model is None:
+        _model = WhisperModel(
+            settings.whisper_model_size,
+            device=settings.whisper_device,
+            compute_type=settings.whisper_compute_type,
+        )
+    return _model
 
 
 def transcribe_pcm16(audio: bytes, sample_rate: int = 16000) -> str:
     """Recognize a single utterance from raw 16-bit mono PCM audio."""
-    speech_config = speechsdk.SpeechConfig(
-        subscription=settings.azure_speech_key, region=settings.azure_speech_region
-    )
-    speech_config.speech_recognition_language = settings.stt_language
-    audio_format = speechsdk.audio.AudioStreamFormat(
-        samples_per_second=sample_rate, bits_per_sample=16, channels=1
-    )
-    push_stream = speechsdk.audio.PushAudioInputStream(stream_format=audio_format)
-    audio_config = speechsdk.audio.AudioConfig(stream=push_stream)
-    recognizer = speechsdk.SpeechRecognizer(speech_config=speech_config, audio_config=audio_config)
-
-    push_stream.write(audio)
-    push_stream.close()
-
-    result = recognizer.recognize_once()
-
-    if result.reason == speechsdk.ResultReason.RecognizedSpeech:
-        return result.text
-    if result.reason == speechsdk.ResultReason.NoMatch:
+    if not audio:
         return ""
-    if result.reason == speechsdk.ResultReason.Canceled:
-        details = speechsdk.CancellationDetails(result)
-        raise RuntimeError(f"STT canceled: {details.reason} {details.error_details}")
-    return ""
+
+    samples = np.frombuffer(audio, dtype=np.int16).astype(np.float32) / 32768.0
+    if sample_rate != 16000:
+        raise ValueError(f"faster-whisper expects 16kHz audio, got {sample_rate}")
+
+    segments, _ = _get_model().transcribe(
+        samples,
+        language=settings.stt_language,
+        beam_size=1,
+        vad_filter=False,  # utterance is already VAD-segmented upstream
+    )
+    return " ".join(segment.text.strip() for segment in segments).strip()

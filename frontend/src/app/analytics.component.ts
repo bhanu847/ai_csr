@@ -5,10 +5,17 @@ import { DashboardService } from './dashboard.service';
 import { IntentBarChartComponent } from './intent-bar-chart.component';
 import { ResolutionTrendChartComponent } from './resolution-trend-chart.component';
 import { SentimentMixChartComponent } from './sentiment-mix-chart.component';
+import { SentimentTrendChartComponent } from './sentiment-trend-chart.component';
 
 @Component({
   selector: 'app-analytics',
-  imports: [CallVolumeChartComponent, IntentBarChartComponent, SentimentMixChartComponent, ResolutionTrendChartComponent],
+  imports: [
+    CallVolumeChartComponent,
+    IntentBarChartComponent,
+    SentimentMixChartComponent,
+    ResolutionTrendChartComponent,
+    SentimentTrendChartComponent,
+  ],
   templateUrl: './analytics.component.html',
   styleUrl: './analytics.component.css',
 })

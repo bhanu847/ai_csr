@@ -1,24 +1,35 @@
-import azure.cognitiveservices.speech as speechsdk
+import io
+import wave
+from pathlib import Path
+
+from piper import PiperVoice
 
 from app.config import settings
+from app.telephony.audio_codec import pcm16_to_mulaw8k
+
+_voices: dict[str, PiperVoice] = {}
+
+
+def _get_voice(voice_name: str) -> PiperVoice:
+    voice = _voices.get(voice_name)
+    if voice is None:
+        model_path = Path(settings.piper_voices_dir) / f"{voice_name}.onnx"
+        voice = PiperVoice.load(str(model_path))
+        _voices[voice_name] = voice
+    return voice
 
 
 def synthesize_mulaw8k(text: str, voice: str) -> bytes:
     """Synthesize text to speech as raw 8kHz mu-law for Twilio Media Streams."""
-    speech_config = speechsdk.SpeechConfig(
-        subscription=settings.azure_speech_key, region=settings.azure_speech_region
-    )
-    speech_config.speech_synthesis_voice_name = voice
-    speech_config.set_speech_synthesis_output_format(
-        speechsdk.SpeechSynthesisOutputFormat.Raw8Khz8BitMonoMULaw
-    )
-    synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=None)
+    piper_voice = _get_voice(voice or settings.piper_default_voice)
 
-    result = synthesizer.speak_text_async(text).get()
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as wav_file:
+        piper_voice.synthesize_wav(text, wav_file)
 
-    if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
-        return result.audio_data
-    if result.reason == speechsdk.ResultReason.Canceled:
-        details = speechsdk.SpeechSynthesisCancellationDetails(result)
-        raise RuntimeError(f"TTS canceled: {details.reason} {details.error_details}")
-    raise RuntimeError(f"TTS failed: {result.reason}")
+    buffer.seek(0)
+    with wave.open(buffer, "rb") as wav_file:
+        pcm16 = wav_file.readframes(wav_file.getnframes())
+        sample_rate = wav_file.getframerate()
+
+    return pcm16_to_mulaw8k(pcm16, sample_rate)

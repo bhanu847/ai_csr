@@ -8,7 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
 
-EMBEDDING_DIM = 1536
+EMBEDDING_DIM = 768  # nomic-embed-text (Ollama) native dimension
 
 
 class KnowledgeDocument(Base):

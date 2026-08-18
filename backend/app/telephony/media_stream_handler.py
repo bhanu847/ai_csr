@@ -26,10 +26,18 @@ from app.models.customer_profile import CustomerProfile
 from app.speech.stt import transcribe_pcm16
 from app.speech.tts import synthesize_mulaw8k
 from app.telephony.audio_codec import mulaw8k_to_pcm16_16k_bytes
-from app.telephony.vad import UtteranceBuffer
+from app.telephony.vad import FRAME_MS, BargeInDetector, UtteranceBuffer
 from app.tools.context import CallContext
 
 logger = logging.getLogger("telephony")
+
+# The byte-length-based playback estimate below is a *fallback* for the
+# authoritative Twilio `mark` echo (in case it's ever lost) — never the
+# primary "reply finished" signal. Padding it means it can only fire late,
+# never early, so it can't win a race against the mark echo and start
+# treating mid-playback caller audio as a fresh utterance (which would skip
+# the `clear` event and let the AI's tail audio overlap the caller).
+PLAYBACK_TIMER_SAFETY_MARGIN_MS = 400
 
 
 @dataclass
@@ -46,6 +54,21 @@ async def _send_audio(websocket: WebSocket, stream_sid: str, mulaw_audio: bytes)
     await websocket.send_text(
         json.dumps({"event": "media", "streamSid": stream_sid, "media": {"payload": payload}})
     )
+
+
+async def _send_mark(websocket: WebSocket, stream_sid: str, name: str) -> None:
+    """Asks Twilio to echo this event back once it finishes playing all
+    audio queued before it — how we know the AI's reply has actually
+    finished (not just been sent)."""
+    await websocket.send_text(
+        json.dumps({"event": "mark", "streamSid": stream_sid, "mark": {"name": name}})
+    )
+
+
+async def _send_clear(websocket: WebSocket, stream_sid: str) -> None:
+    """Tells Twilio to immediately drop any buffered/playing AI audio —
+    the barge-in cutoff."""
+    await websocket.send_text(json.dumps({"event": "clear", "streamSid": stream_sid}))
 
 
 def _load_call_start_info(tenant_id: uuid.UUID, agent_id: uuid.UUID, call_id: uuid.UUID) -> CallStartInfo:
@@ -161,6 +184,18 @@ async def handle_media_stream(websocket: WebSocket) -> None:
     agent: Agent | None = None
     routed = False
 
+    # Barge-in state: while `ai_speaking` is True, the caller's audio is
+    # checked against the barge-in detector instead of the normal utterance
+    # buffer. `ai_speech_remaining_ms` is a local-clock fallback (in case
+    # Twilio's mark echo is ever lost) that also flips it back off once the
+    # AI's reply has finished playing; it's padded so it can only fire late,
+    # never early — see PLAYBACK_TIMER_SAFETY_MARGIN_MS.
+    ai_speaking = False
+    active_mark: str | None = None
+    ai_speech_remaining_ms = 0
+    ai_speech_total_ms = 0
+    barge_in = BargeInDetector()
+
     try:
         while True:
             raw = await websocket.receive_text()
@@ -198,10 +233,42 @@ async def handle_media_stream(websocket: WebSocket) -> None:
                 await asyncio.to_thread(_persist_assistant_message, tenant_id, call_id, greeting)
                 greeting_audio = await asyncio.to_thread(synthesize_mulaw8k, greeting, agent.voice)
                 await _send_audio(websocket, stream_sid, greeting_audio)
+                active_mark = str(uuid.uuid4())
+                ai_speaking = True
+                ai_speech_total_ms = len(greeting_audio) // 8  # 8kHz mu-law = 8 bytes/ms
+                ai_speech_remaining_ms = ai_speech_total_ms + PLAYBACK_TIMER_SAFETY_MARGIN_MS
+                await _send_mark(websocket, stream_sid, active_mark)
 
             elif event == "media" and stream_sid and session is not None and agent is not None:
                 mulaw_chunk = base64.b64decode(message["media"]["payload"])
                 pcm16_16k = mulaw8k_to_pcm16_16k_bytes(mulaw_chunk)
+
+                if ai_speaking:
+                    ai_speech_remaining_ms -= FRAME_MS
+                    if ai_speech_remaining_ms <= 0:
+                        # AI's reply has finished playing out on its own.
+                        ai_speaking = False
+                        active_mark = None
+                        barge_in.reset()
+                    else:
+                        barged_in_frames = barge_in.add_frame(pcm16_16k)
+                        if barged_in_frames is not None:
+                            elapsed_ms = ai_speech_total_ms - (ai_speech_remaining_ms - PLAYBACK_TIMER_SAFETY_MARGIN_MS)
+                            logger.info(
+                                "Caller barged in: %s (%dms into %dms reply)",
+                                stream_sid, elapsed_ms, ai_speech_total_ms,
+                            )
+                            await _send_clear(websocket, stream_sid)
+                            ai_speaking = False
+                            active_mark = None
+                            # Start the caller's new utterance from the audio
+                            # that triggered the interruption, so they don't
+                            # have to repeat themselves.
+                            buffer = UtteranceBuffer()
+                            for frame in barged_in_frames:
+                                buffer.add_frame(frame)
+                    continue
+
                 utterance = buffer.add_frame(pcm16_16k)
                 if utterance is not None:
                     transcript = await asyncio.to_thread(transcribe_pcm16, utterance)
@@ -228,6 +295,17 @@ async def handle_media_stream(websocket: WebSocket) -> None:
                         )
                         audio = await asyncio.to_thread(synthesize_mulaw8k, reply, agent.voice)
                         await _send_audio(websocket, stream_sid, audio)
+                        active_mark = str(uuid.uuid4())
+                        ai_speaking = True
+                        ai_speech_total_ms = len(audio) // 8
+                        ai_speech_remaining_ms = ai_speech_total_ms + PLAYBACK_TIMER_SAFETY_MARGIN_MS
+                        await _send_mark(websocket, stream_sid, active_mark)
+
+            elif event == "mark" and stream_sid:
+                mark_name = message.get("mark", {}).get("name")
+                if mark_name == active_mark:
+                    ai_speaking = False
+                    active_mark = None
 
             elif event == "stop":
                 logger.info("Call ended: %s", stream_sid)

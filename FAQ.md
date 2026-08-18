@@ -10,15 +10,15 @@ Answers to the questions asked while building this out. For full system docs (ar
 
 Every turn runs through five steps **in sequence, not streaming** — each one waits for a full result before the next starts:
 
-| Step | What happens | Time |
+| Step | What happens | Time (CPU, no GPU) |
 |---|---|---|
 | Silence detection | The system waits 700ms of silence after you stop talking before it even starts processing (`SILENCE_DURATION_MS = 700` in `vad.py`) | 0.7s fixed |
-| Speech-to-text | Your whole utterance sent to Azure Speech in one shot | ~0.3–1.5s |
-| LLM thinks | Azure OpenAI generates the complete reply before returning anything | ~0.5–2s |
-| *(if a tool is used, e.g. a claim lookup)* | DB lookups are fast (~10–100ms), but a knowledge search adds an embedding API call, and using a tool means a **second** full LLM round-trip for the final reply | +1–2s |
-| Text-to-speech | Full audio synthesized before anything is sent back | ~0.3–1.5s |
+| Speech-to-text | Your whole utterance transcribed locally by faster-whisper (`base` model) | ~0.3–2s |
+| LLM thinks | Ollama (local, `qwen3:8b` by default) generates the complete reply before returning anything | ~1–4s |
+| *(if a tool is used, e.g. a claim lookup)* | DB lookups are fast (~10–100ms), but a knowledge search adds a local embedding call, and using a tool means a **second** full LLM round-trip for the final reply | +1–4s |
+| Text-to-speech | Full audio synthesized locally by Piper before anything is sent back | ~0.2–1s |
 
-**Simple reply:** ~2–4 seconds. **Reply needing a tool/database lookup:** ~3–6 seconds.
+**Simple reply:** ~2–7 seconds on CPU. **Reply needing a tool/database lookup:** ~4–10 seconds. This is the direct tradeoff of the open-source/self-hosted swap (see [README.md § 1](README.md#1-tech-stack)): $0 per call instead of Azure's paid, GPU-backed inference, but slower on ordinary CPU hardware — a GPU (for Ollama and/or faster-whisper) meaningfully closes the gap, especially the LLM step, which dominates the total.
 
 Nothing is streaming today (not STT, not the LLM, not TTS) — that's the single biggest lever to cut perceived latency if it ever needs to feel snappier.
 

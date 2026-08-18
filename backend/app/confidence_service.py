@@ -23,8 +23,17 @@ def band_for(score: float) -> ConfidenceBand:
 
 def score_from_distance(distance: float) -> float:
     """pgvector cosine_distance is 1 - cosine_similarity, in [0, 2] for
-    unnormalized vectors but practically ~[0, 1.3] for OpenAI text
-    embeddings. Convert to a 0-100 confidence score."""
+    unnormalized vectors. Convert to a 0-100 confidence score.
+
+    NOTE: HIGH_THRESHOLD/LOW_THRESHOLD above were picked for the distance
+    distribution of Azure OpenAI embeddings (the original stack). This
+    project now embeds with nomic-embed-text, whose cosine-distance
+    distribution for matching vs. non-matching text is not necessarily the
+    same shape — these thresholds haven't been re-validated against it.
+    If real calls show too many LOW-confidence escalations on answers that
+    were actually right (or too many confident wrong answers), recalibrate
+    these two numbers against a sample of real query/chunk distance pairs
+    rather than assuming 90/70 still hold."""
     similarity = 1 - distance
     return round(max(0.0, min(1.0, similarity)) * 100, 1)
 

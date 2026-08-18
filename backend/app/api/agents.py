@@ -17,7 +17,7 @@ router = APIRouter(prefix="/api/agents", tags=["agents"])
 class CreateAgentRequest(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     persona: str = Field(default="", max_length=2000)
-    voice: str = Field(default="en-IN-NeerjaNeural", max_length=100)
+    voice: str = Field(default="en_US-amy-medium", max_length=100)
     department: str = Field(default="general", max_length=50)
 
 
