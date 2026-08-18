@@ -7,11 +7,8 @@ from app import confidence_service
 from app.audit import logger as audit
 from app.models.appointment import Appointment
 from app.models.call import Call, ResolutionStatus
-from app.models.claim import Claim, ClaimStatus
+from app.models.claim import ClaimStatus
 from app.models.customer_profile import CustomerProfile
-from app.models.drug import Drug
-from app.models.member import Member
-from app.models.pharmacy import Pharmacy
 from app.models.ticket import Ticket
 from app.rag import service as rag_service
 from app.tools.context import CallContext
@@ -103,14 +100,12 @@ def _verify_member(ctx: CallContext, args: dict) -> str:
     except ValueError:
         return "That date of birth wasn't understood — ask for it as year-month-day."
 
-    member = ctx.db.execute(
-        select(Member).where(
-            Member.tenant_id == ctx.tenant_id,
-            Member.member_id == args["member_id"],
-            Member.date_of_birth == dob,
-            Member.zip_code == args["zip_code"],
-        )
-    ).scalar_one_or_none()
+    member = ctx.pbm.verify_member(
+        member_id=args["member_id"],
+        date_of_birth=dob,
+        zip_code=args["zip_code"],
+        link_customer_id=str(ctx.customer_id) if ctx.customer_id is not None else None,
+    )
 
     if member is None:
         # Deliberately generic on failure — don't reveal whether the
@@ -126,8 +121,6 @@ def _verify_member(ctx: CallContext, args: dict) -> str:
         return "Verification failed — the member ID, date of birth, and ZIP code didn't all match our records."
 
     ctx.verified_member_id = member.member_id
-    if ctx.customer_id is not None and member.customer_id is None:
-        ctx.db.execute(update(Member).where(Member.id == member.id).values(customer_id=ctx.customer_id))
     audit.record(
         ctx.db,
         tenant_id=ctx.tenant_id,
@@ -139,40 +132,31 @@ def _verify_member(ctx: CallContext, args: dict) -> str:
     return f"Identity verified for {member.first_name} {member.last_name}, plan {member.plan_name}."
 
 
-def _get_verified_member(ctx: CallContext) -> Member | None:
-    if ctx.verified_member_id is None:
-        return None
-    return ctx.db.execute(
-        select(Member).where(Member.tenant_id == ctx.tenant_id, Member.member_id == ctx.verified_member_id)
-    ).scalar_one_or_none()
-
-
 def _check_claim_status(ctx: CallContext, args: dict) -> str:
-    member = _get_verified_member(ctx)
-    if member is None:
+    # Verification is a hard prerequisite, enforced here at the handler
+    # layer -- true for every PBMProvider implementation, not just Postgres.
+    if ctx.verified_member_id is None:
         return "[VERIFICATION REQUIRED] Identity has not been verified this call."
 
-    query = select(Claim).where(Claim.tenant_id == ctx.tenant_id, Claim.member_id == member.id)
-    claim_number = args.get("claim_number")
-    if claim_number:
-        query = query.where(Claim.claim_number == claim_number)
-    query = query.order_by(Claim.service_date.desc()).limit(1)
-
-    claim = ctx.db.execute(query).scalar_one_or_none()
-    if claim is None:
+    claims = ctx.pbm.get_claims(ctx.verified_member_id, claim_number=args.get("claim_number"), limit=1)
+    if not claims:
         return "No claims found for this member."
 
+    claim = claims[0]
     result = (
         f"Claim {claim.claim_number}, service date {claim.service_date}, provider {claim.provider_name}, "
-        f"amount ${claim.amount:.2f}, status: {claim.status.value}."
+        f"amount ${claim.amount:.2f}, status: {claim.status}."
     )
-    if claim.status == ClaimStatus.REJECTED and claim.rejection_reason:
+    if claim.status == ClaimStatus.REJECTED.value and claim.rejection_reason:
         result += f" Rejection reason: {claim.rejection_reason}."
     return result
 
 
 def _get_benefits(ctx: CallContext, args: dict) -> str:
-    member = _get_verified_member(ctx)
+    if ctx.verified_member_id is None:
+        return "[VERIFICATION REQUIRED] Identity has not been verified this call."
+
+    member = ctx.pbm.get_benefits(ctx.verified_member_id)
     if member is None:
         return "[VERIFICATION REQUIRED] Identity has not been verified this call."
 
@@ -185,13 +169,7 @@ def _get_benefits(ctx: CallContext, args: dict) -> str:
 
 
 def _search_formulary(ctx: CallContext, args: dict) -> str:
-    drugs = (
-        ctx.db.execute(
-            select(Drug).where(Drug.tenant_id == ctx.tenant_id, Drug.name.ilike(f"%{args['drug_name']}%"))
-        )
-        .scalars()
-        .all()
-    )
+    drugs = ctx.pbm.search_formulary(args["drug_name"])
     if not drugs:
         return f"No formulary entry found for '{args['drug_name']}'."
 
@@ -204,17 +182,7 @@ def _search_formulary(ctx: CallContext, args: dict) -> str:
 
 
 def _find_pharmacy(ctx: CallContext, args: dict) -> str:
-    pharmacies = (
-        ctx.db.execute(
-            select(Pharmacy).where(
-                Pharmacy.tenant_id == ctx.tenant_id,
-                Pharmacy.zip_code == args["zip_code"],
-                Pharmacy.in_network == True,  # noqa: E712
-            )
-        )
-        .scalars()
-        .all()
-    )
+    pharmacies = ctx.pbm.find_pharmacy(args["zip_code"])
     if not pharmacies:
         return f"No in-network pharmacies found in ZIP {args['zip_code']}."
     return "\n".join(f"{p.name}, {p.address}, {p.phone}" for p in pharmacies)

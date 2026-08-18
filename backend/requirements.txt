@@ -10,6 +10,7 @@ psycopg[binary]==3.2.13
 pgvector==0.3.6
 bcrypt==5.0.0
 pyjwt==2.9.0
+pytest==9.1.1
 slowapi==0.1.10
 twilio==9.3.7
 openai==1.59.7          # also provides the AzureOpenAI client used for chat
