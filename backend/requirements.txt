@@ -10,8 +10,11 @@ psycopg[binary]==3.2.13
 pgvector==0.3.6
 bcrypt==5.0.0
 pyjwt==2.9.0
+slowapi==0.1.10
 twilio==9.3.7
 openai==1.59.7
+anthropic==0.122.0
+httpx==0.28.1
 faster-whisper==1.2.1
 piper-tts==1.6.0
 audioop-lts==0.2.2

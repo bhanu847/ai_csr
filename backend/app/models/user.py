@@ -31,3 +31,8 @@ class User(Base):
     role: Mapped[Role] = mapped_column(Enum(Role, name="user_role"), nullable=False, default=Role.VIEWER)
     sso_subject: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
+
+    # Set by /forgot-password, cleared by /reset-password or on expiry.
+    # Only the hash is stored — see the migration for why.
+    password_reset_token_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    password_reset_expires_at: Mapped[datetime | None] = mapped_column(nullable=True)

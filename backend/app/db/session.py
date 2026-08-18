@@ -7,7 +7,17 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import settings
 
-engine = create_engine(settings.database_url, pool_pre_ping=True)
+engine = create_engine(
+    settings.database_url,
+    pool_pre_ping=True,
+    # SQLAlchemy's untouched defaults (pool_size=5, max_overflow=10) cap
+    # this process at 15 concurrent DB connections -- far below what
+    # concurrent calls need, and well under Postgres's own max_connections
+    # (100 by default). Raised to give real headroom; the right ceiling
+    # for a specific deployment still needs load testing, not a guess.
+    pool_size=settings.db_pool_size,
+    max_overflow=settings.db_pool_max_overflow,
+)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 
