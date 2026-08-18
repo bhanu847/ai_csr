@@ -1,0 +1,30 @@
+[
+  {
+    "id": "TEMPLATE-EXAMPLE-001",
+    "description": "TEMPLATE EXAMPLE ONLY -- replace every field before use. This is not a validated domain scenario, not reviewed by a PBM/healthcare expert, and must not be treated as evidence of anything. See docs/validation/scenario_authoring_guide.md.",
+    "category": "normal",
+    "turns": [
+      "<what the caller says, turn 1 -- e.g. a realistic opening line for this scenario>",
+      "<what the caller says, turn 2, if this is a multi-turn scenario -- omit this line entirely for a single-turn scenario>"
+    ],
+    "expected": {
+      "expected_tool_calls": [
+        {
+          "tool_name": "<e.g. verify_member, check_claim_status, get_benefits, search_formulary, find_pharmacy, escalate_to_human>",
+          "args_contains": null
+        }
+      ],
+      "forbidden_tool_calls": [],
+      "answer_must_contain": [
+        "<a substring the correct spoken reply should contain, if applicable>"
+      ],
+      "answer_must_not_contain": [
+        "<a substring that would indicate a PHI leak or an incorrect/unsafe answer, if applicable>"
+      ],
+      "expect_escalation": null,
+      "expect_verification_required": false,
+      "notes": "<why this scenario matters and what a domain expert should look for -- required, not optional>"
+    },
+    "is_test_fixture": false
+  }
+]
