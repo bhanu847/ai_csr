@@ -12,12 +12,14 @@ bcrypt==5.0.0
 pyjwt==2.9.0
 slowapi==0.1.10
 twilio==9.3.7
-openai==1.59.7
-anthropic==0.122.0
-httpx==0.28.1
-faster-whisper==1.2.1
-piper-tts==1.6.0
+openai==1.59.7          # also provides the AzureOpenAI client used for chat
+httpx==0.28.1           # direct REST calls to Azure Speech (STT + TTS)
 audioop-lts==0.2.2
+# Unused by the running app (provider swapped away from these) but left
+# installed in case of a rollback -- see app/llm/client.py, app/speech/.
+anthropic==0.122.0      # was the LLM client before switching to Azure OpenAI
+faster-whisper==1.2.1   # was STT before switching to Azure Speech
+piper-tts==1.6.0        # was TTS before switching to Azure Speech
 pypdf==5.1.0
 python-docx==1.1.2
 numpy==2.5.1

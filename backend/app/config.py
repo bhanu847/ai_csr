@@ -64,14 +64,16 @@ class Settings(BaseSettings):
 
     # Hosted LLM for conversational replies + structured JSON extraction
     # (call summaries, QA scoring, intent routing) — see app/llm/client.py.
-    # Chosen over the self-hosted Ollama model for real-call reliability and
-    # concurrency headroom; this is a real per-token cost, unlike the rest
-    # of the stack. anthropic_effort is "low" by default because voice
-    # replies are short (max 3 sentences) and latency-sensitive — raise it
-    # if replies start feeling shallow on harder questions.
-    anthropic_api_key: str = ""
-    anthropic_model: str = "claude-opus-5"
-    anthropic_effort: str = "low"
+    # Azure OpenAI speaks the native OpenAI chat-completions API, so this
+    # is a straight endpoint swap, not a format adapter. Real per-token
+    # cost, unlike the self-hosted embedding/TTS pieces.
+    # azure_openai_deployment is the *deployment name* you chose in Azure
+    # AI Studio, not a model name like "gpt-4o" -- Azure routes by
+    # deployment, and deployment names are per-resource.
+    azure_openai_api_key: str = ""
+    azure_openai_endpoint: str = ""
+    azure_openai_deployment: str = ""
+    azure_openai_api_version: str = "2024-10-21"
 
     # Local embedding model, also served by Ollama (ollama pull <model>).
     # embedding_dim MUST match the model's native output size — it's baked
@@ -79,22 +81,23 @@ class Settings(BaseSettings):
     embedding_model: str = "nomic-embed-text"
     embedding_dim: int = 768
 
-    # Speech-to-text. Moved from self-hosted faster-whisper to Deepgram's
-    # hosted pre-recorded-transcription API for real-call reliability and
-    # concurrency headroom (self-hosted STT compute doesn't scale to many
-    # concurrent calls on one machine any better than self-hosted LLM
-    # inference did — see app/llm/client.py). whisper_* settings are unused
-    # now but left in place in case of a rollback to self-hosted STT.
-    stt_language: str = "en"
+    # Speech-to-text and text-to-speech: Azure AI Speech, hosted. One key
+    # + region covers both (app/speech/stt.py, app/speech/tts.py). Real
+    # per-minute cost. whisper_*/piper_* settings below are unused now but
+    # left in place in case of a rollback to self-hosted speech.
+    stt_language: str = "en-US"
     whisper_model_size: str = "base"
     whisper_device: str = "cpu"
     whisper_compute_type: str = "int8"
-    deepgram_api_key: str = ""
+    azure_speech_key: str = ""
+    azure_speech_region: str = ""
 
-    # Local text-to-speech (Piper, runs in-process — no server). Voice
-    # models are downloaded once with `python -m piper.download_voices`
-    # into piper_voices_dir; agents.voice stores a Piper voice name
-    # (e.g. "en_US-amy-medium") matching a .onnx file in that directory.
+    # Azure neural voice used when an agent's `voice` field doesn't match a
+    # known name (see app/speech/tts.py's Piper-name compatibility map —
+    # existing agents still have Piper voice names stored from before this
+    # switch). Full neural voice list: https://speech.microsoft.com/portal/voicegallery
+    azure_default_voice: str = "en-US-JennyNeural"
+
     piper_voices_dir: str = "./voices"
     piper_default_voice: str = "en_US-amy-medium"
 

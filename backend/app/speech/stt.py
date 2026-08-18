@@ -5,15 +5,14 @@ import httpx
 
 from app.config import settings
 
-_DEEPGRAM_URL = "https://api.deepgram.com/v1/listen"
+_AZURE_STT_PATH = "/speech/recognition/conversation/cognitiveservices/v1"
 
 
 def transcribe_pcm16(audio: bytes, sample_rate: int = 16000) -> str:
     """Recognize a single utterance from raw 16-bit mono PCM audio via
-    Deepgram's pre-recorded transcription API. The caller (media stream
-    handler) already VAD-segments a complete utterance before calling this,
-    so batch transcription is the right fit -- not Deepgram's separate
-    real-time streaming API, which is for continuous unsegmented audio."""
+    Azure AI Speech's short-audio REST API. The caller (media stream
+    handler) already VAD-segments a complete utterance (capped at 15s)
+    before calling this, well within this endpoint's limits."""
     if not audio:
         return ""
 
@@ -24,22 +23,20 @@ def transcribe_pcm16(audio: bytes, sample_rate: int = 16000) -> str:
         wav_file.setframerate(sample_rate)
         wav_file.writeframes(audio)
 
+    url = f"https://{settings.azure_speech_region}.stt.speech.microsoft.com{_AZURE_STT_PATH}"
     response = httpx.post(
-        _DEEPGRAM_URL,
-        params={
-            "model": "nova-2",
-            "language": settings.stt_language,
-            "punctuate": "true",
-            "smart_format": "true",
-        },
+        url,
+        params={"language": settings.stt_language, "format": "simple"},
         headers={
-            "Authorization": f"Token {settings.deepgram_api_key}",
-            "Content-Type": "audio/wav",
+            "Ocp-Apim-Subscription-Key": settings.azure_speech_key,
+            "Content-Type": f"audio/wav; codecs=audio/pcm; samplerate={sample_rate}",
+            "Accept": "application/json",
         },
         content=wav_buffer.getvalue(),
         timeout=10.0,
     )
     response.raise_for_status()
     data = response.json()
-    transcript = data["results"]["channels"][0]["alternatives"][0]["transcript"]
-    return transcript.strip()
+    if data.get("RecognitionStatus") != "Success":
+        return ""
+    return data.get("DisplayText", "").strip()

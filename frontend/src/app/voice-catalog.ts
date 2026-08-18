@@ -6,40 +6,37 @@ export interface VoiceCatalogEntry {
   gender: 'Female' | 'Male';
 }
 
-// Open-source Piper voices (https://github.com/OHF-Voice/piper1-gpl) — id
-// must match a .onnx voice model downloaded into the backend's
-// PIPER_VOICES_DIR (see backend/.env.example). No native Indian-accented
-// English voice exists in Piper's open voice set; hi_IN-rohan-medium is
-// the only Hindi option, and it's male despite standing in for the old
-// "Swara" (female) slot.
+// Azure AI Speech neural voices (https://speech.microsoft.com/portal/voicegallery)
+// — id must be a real Azure voice name; the backend passes it straight
+// through to the Speech REST API (see backend/app/speech/tts.py).
 const CATALOG: Record<string, VoiceCatalogEntry> = {
-  'en_US-amy-medium': {
-    id: 'en_US-amy-medium',
-    label: 'Amy',
+  'en-US-JennyNeural': {
+    id: 'en-US-JennyNeural',
+    label: 'Jenny',
     locale: 'en-US',
     localeName: 'English (US)',
     gender: 'Female',
   },
-  'en_US-ryan-medium': {
-    id: 'en_US-ryan-medium',
-    label: 'Ryan',
+  'en-US-GuyNeural': {
+    id: 'en-US-GuyNeural',
+    label: 'Guy',
     locale: 'en-US',
     localeName: 'English (US)',
     gender: 'Male',
   },
-  'en_GB-alan-medium': {
-    id: 'en_GB-alan-medium',
-    label: 'Alan',
+  'en-GB-RyanNeural': {
+    id: 'en-GB-RyanNeural',
+    label: 'Ryan',
     locale: 'en-GB',
     localeName: 'English (UK)',
     gender: 'Male',
   },
-  'hi_IN-rohan-medium': {
-    id: 'hi_IN-rohan-medium',
-    label: 'Rohan',
+  'hi-IN-SwaraNeural': {
+    id: 'hi-IN-SwaraNeural',
+    label: 'Swara',
     locale: 'hi-IN',
     localeName: 'Hindi (India)',
-    gender: 'Male',
+    gender: 'Female',
   },
 };
 

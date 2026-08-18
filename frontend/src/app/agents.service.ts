@@ -13,7 +13,7 @@ export interface Agent {
 
 const API_URL = 'http://localhost:8001/api/agents';
 
-export const VOICE_OPTIONS = ['en_US-amy-medium', 'en_US-ryan-medium', 'en_GB-alan-medium', 'hi_IN-rohan-medium'];
+export const VOICE_OPTIONS = ['en-US-JennyNeural', 'en-US-GuyNeural', 'en-GB-RyanNeural', 'hi-IN-SwaraNeural'];
 
 export const DEPARTMENT_OPTIONS = ['general', 'claims', 'pharmacy', 'benefits', 'provider', 'escalation'];
 
