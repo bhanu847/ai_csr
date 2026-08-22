@@ -25,7 +25,7 @@
 | Claim | What would prove it | Current evidence | Status |
 |---|---|---|---|
 | RAG answers only use retrieved document text | Direct retrieval test comparing on-topic vs. off-topic query similarity scores | One manual test session, one document, three queries (see project history) | BUILT-UNVERIFIED — real but far too small a sample to claim general grounding behavior |
-| The 90/70 confidence thresholds correspond to actual correctness rates | Calibration study: for a labeled set of (query, correct-or-not) pairs, plot confidence score vs. actual correctness and check the 90/70 cut points are meaningful | NONE | NOT IMPLEMENTED |
+| The confidence thresholds correspond to actual correctness rates | Calibration study: for a labeled set of (query, correct-or-not) pairs, plot confidence score vs. actual correctness and check the cut points are meaningful | 2026-08-22: a real first call exposed the *original* 90/70 thresholds as wrong for `nomic-embed-text` — a resume upload with the answer verbatim in a chunk still scored 56.8%/61.9% (both LOW), triggering false escalations. A 9-pair sample (6 known-relevant queries, 3 known-irrelevant, 1 document) showed relevant matches at 56.8-63.7% vs. irrelevant at 47.6-49.8% — a real gap, just entirely under the old cutoff. Thresholds moved to LOW=53/HIGH=75 (`app/confidence_service.py`) to fit that gap. This is a real-data correction of a provably wrong default, not a validated calibration — 9 pairs from 1 document is far short of the sample size/diversity a real study needs. | NOT IMPLEMENTED (real study still hasn't happened; thresholds are now evidence-corrected rather than assumed) |
 
 ## Verification / PHI safety
 

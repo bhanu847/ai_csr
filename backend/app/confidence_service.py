@@ -3,8 +3,23 @@ from dataclasses import dataclass
 
 # "Answers only when confidence is high, uses verified sources, and
 # escalates uncertain cases" — the three bands below are the whole policy.
-HIGH_THRESHOLD = 90.0
-LOW_THRESHOLD = 70.0
+#
+# Recalibrated 2026-08-22 against nomic-embed-text (see score_from_distance's
+# note below): a real 9-pair sample against one uploaded document (6 known-
+# relevant queries, 3 known-irrelevant) scored relevant matches at 56.8-63.7%
+# and irrelevant queries at 47.6-49.8% -- a real gap, just sitting entirely
+# under the old 70/90 cutoffs inherited from Azure OpenAI's embeddings, which
+# caused every query (relevant or not) to be treated as LOW/unanswerable.
+# LOW_THRESHOLD=53 sits in that observed gap. HIGH_THRESHOLD=75 is set above
+# every score observed so far -- deliberately conservative, since 9 pairs
+# from 1 document is nowhere near enough to say what a *genuinely* HIGH-
+# confidence match looks like for this model. This is NOT the calibration
+# study docs/validation/evidence_requirements.md calls for (that needs a
+# larger, varied, labeled sample) -- it's a real-data correction of cutoffs
+# that were provably wrong, not a validated final answer. Revisit as more
+# real query/document pairs accumulate.
+HIGH_THRESHOLD = 75.0
+LOW_THRESHOLD = 53.0
 
 
 class ConfidenceBand(str, enum.Enum):
@@ -25,15 +40,9 @@ def score_from_distance(distance: float) -> float:
     """pgvector cosine_distance is 1 - cosine_similarity, in [0, 2] for
     unnormalized vectors. Convert to a 0-100 confidence score.
 
-    NOTE: HIGH_THRESHOLD/LOW_THRESHOLD above were picked for the distance
-    distribution of Azure OpenAI embeddings (the original stack). This
-    project now embeds with nomic-embed-text, whose cosine-distance
-    distribution for matching vs. non-matching text is not necessarily the
-    same shape — these thresholds haven't been re-validated against it.
-    If real calls show too many LOW-confidence escalations on answers that
-    were actually right (or too many confident wrong answers), recalibrate
-    these two numbers against a sample of real query/chunk distance pairs
-    rather than assuming 90/70 still hold."""
+    See the recalibration note on HIGH_THRESHOLD/LOW_THRESHOLD above --
+    those cutoffs are fit to nomic-embed-text's actual (lower, narrower)
+    similarity range from a small real sample, not assumed."""
     similarity = 1 - distance
     return round(max(0.0, min(1.0, similarity)) * 100, 1)
 
