@@ -26,6 +26,17 @@ from dataclasses import dataclass
 from datetime import date
 
 
+def normalize_claim_number(value: str) -> str:
+    """Strip hyphens/spaces and uppercase, so a spoken claim number that
+    passed through STT (e.g. "CLM 90001", a dash heard as a pause) still
+    matches the stored "CLM-90001" -- found live on 2026-08-22: an exact
+    string match on a real, already-verified claim silently failed and
+    triggered an unnecessary escalation. Both implementations must apply
+    this the same way, which is why it lives here rather than being
+    duplicated per-backend."""
+    return value.upper().replace("-", "").replace(" ", "")
+
+
 @dataclass(frozen=True)
 class MemberRecord:
     """Plain data, not a Member ORM row -- a REST/FHIR-backed provider can

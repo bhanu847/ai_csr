@@ -145,6 +145,20 @@ def test_get_claims_filters_by_claim_number(pbm_test_tenant_id):
         assert claims[0].status == "approved"
 
 
+def test_get_claims_filters_tolerate_spoken_formatting(pbm_test_tenant_id):
+    """Regression test for a real bug found on a live call, 2026-08-22:
+    STT transcribed a spoken claim number's dash as a space ("CLM 90001"
+    vs. the stored "CLM-90001"), and an exact-string-match lookup silently
+    failed on a claim that genuinely existed -- triggering an unnecessary
+    escalation for an already-verified caller."""
+    with tenant_session(pbm_test_tenant_id) as db:
+        provider = PostgresPBMProvider(db, pbm_test_tenant_id)
+        claims = provider.get_claims(MEMBER_ID, claim_number="pbmtest clm old")
+
+        assert len(claims) == 1
+        assert claims[0].claim_number == "PBMTEST-CLM-OLD"
+
+
 def test_get_benefits_matches_verify_member_data(pbm_test_tenant_id):
     with tenant_session(pbm_test_tenant_id) as db:
         provider = PostgresPBMProvider(db, pbm_test_tenant_id)

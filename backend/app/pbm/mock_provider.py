@@ -15,7 +15,14 @@ here can't be masked by both sides drifting together.
 from dataclasses import dataclass, field
 from datetime import date
 
-from app.pbm.provider import ClaimRecord, FormularyEntry, MemberRecord, PBMProvider, PharmacyRecord
+from app.pbm.provider import (
+    ClaimRecord,
+    FormularyEntry,
+    MemberRecord,
+    PBMProvider,
+    PharmacyRecord,
+    normalize_claim_number,
+)
 
 
 @dataclass
@@ -83,7 +90,8 @@ class MockPBMProvider(PBMProvider):
             return []
         claims = member.claims
         if claim_number:
-            claims = [c for c in claims if c.claim_number == claim_number]
+            normalized = normalize_claim_number(claim_number)
+            claims = [c for c in claims if normalize_claim_number(c.claim_number) == normalized]
         return sorted(claims, key=lambda c: c.service_date, reverse=True)[:limit]
 
     def get_benefits(self, member_id: str) -> MemberRecord | None:

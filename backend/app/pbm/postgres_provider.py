@@ -7,14 +7,21 @@ anywhere in product-facing material."""
 import uuid
 from datetime import date
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.models.claim import Claim
 from app.models.drug import Drug
 from app.models.member import Member
 from app.models.pharmacy import Pharmacy
-from app.pbm.provider import ClaimRecord, FormularyEntry, MemberRecord, PBMProvider, PharmacyRecord
+from app.pbm.provider import (
+    ClaimRecord,
+    FormularyEntry,
+    MemberRecord,
+    PBMProvider,
+    PharmacyRecord,
+    normalize_claim_number,
+)
 
 
 def _to_member_record(member: Member) -> MemberRecord:
@@ -72,7 +79,9 @@ class PostgresPBMProvider(PBMProvider):
 
         query = select(Claim).where(Claim.tenant_id == self._tenant_id, Claim.member_id == member.id)
         if claim_number:
-            query = query.where(Claim.claim_number == claim_number)
+            normalized = normalize_claim_number(claim_number)
+            db_normalized = func.replace(func.replace(func.upper(Claim.claim_number), "-", ""), " ", "")
+            query = query.where(db_normalized == normalized)
         query = query.order_by(Claim.service_date.desc()).limit(limit)
 
         claims = self._db.execute(query).scalars().all()

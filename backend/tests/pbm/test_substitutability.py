@@ -94,6 +94,24 @@ def test_check_claim_status_after_verification_uses_mock_data(pbm_test_tenant_id
         assert "approved" in result
 
 
+def test_check_claim_status_tolerates_spoken_formatting_against_mock_provider(pbm_test_tenant_id):
+    """Regression test for a real bug found on a live call, 2026-08-22:
+    STT transcribed a spoken claim number's dash as a space, and an
+    exact-string-match lookup silently failed on a claim that genuinely
+    existed. normalize_claim_number() lives in provider.py precisely so
+    both implementations honor it identically -- this proves the mock
+    side does too, not just Postgres."""
+    with tenant_session(pbm_test_tenant_id) as db:
+        ctx = _make_ctx(db, pbm_test_tenant_id)
+        handlers = build_tool_handlers(ctx)
+
+        handlers["verify_member"]({"member_id": "MOCK-001", "date_of_birth": "1985-03-14", "zip_code": "99501"})
+        result = handlers["check_claim_status"]({"claim_number": "mock clm 1"})
+
+        assert "MOCK-CLM-1" in result
+        assert "approved" in result
+
+
 def test_get_benefits_after_verification_uses_mock_data(pbm_test_tenant_id):
     with tenant_session(pbm_test_tenant_id) as db:
         ctx = _make_ctx(db, pbm_test_tenant_id)
