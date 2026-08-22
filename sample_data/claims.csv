@@ -1,0 +1,6 @@
+claim_number,member_id,service_date,provider_name,description,amount,status,rejection_reason
+CLM-90001,MEM10234,2026-07-02,Apollo Clinic,Annual physical exam,150.00,approved,
+CLM-90002,MEM10234,2026-07-20,MedPlus Pharmacy,Prescription refill - Metformin,45.00,approved,
+CLM-90003,MEM10235,2026-06-15,Fortis Hospital,MRI scan - knee,1200.00,pending,
+CLM-90004,MEM10236,2026-05-30,City Diagnostics,Blood test panel,80.00,rejected,Prior authorization not obtained
+CLM-90005,MEM10237,2026-08-01,HealthFirst Clinic,Specialist consultation - cardiology,200.00,approved,

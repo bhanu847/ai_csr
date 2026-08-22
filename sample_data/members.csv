@@ -1,0 +1,6 @@
+member_id,first_name,last_name,date_of_birth,zip_code,plan_name,group_number,copay_primary_care,copay_specialist,copay_er,deductible,deductible_met
+MEM10234,Rohan,Sharma,1990-05-14,110001,Silver PPO 500,GRP-4471,20,40,150,1000,250
+MEM10235,Priya,Verma,1985-11-02,400001,Gold HMO 250,GRP-4471,10,25,100,500,500
+MEM10236,Arjun,Mehta,1978-03-22,560001,Silver PPO 500,GRP-4472,20,40,150,1000,0
+MEM10237,Anshu,Tomar,1999-01-10,201301,Bronze HDHP 2000,GRP-4473,30,60,250,2000,100
+MEM10238,Sara,Khan,1992-07-19,110001,Gold HMO 250,GRP-4471,10,25,100,500,500

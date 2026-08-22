@@ -1,0 +1,6 @@
+name,address,zip_code,phone,in_network
+MedPlus Pharmacy,12 MG Road,110001,+91-11-4567-8901,true
+Apollo Pharmacy,45 Connaught Place,110001,+91-11-4567-8902,true
+Wellness Forever,8 Marine Drive,400001,+91-22-2345-6789,true
+Fortis Pharmacy,22 Bannerghatta Road,560001,+91-80-3456-7890,true
+Local Care Pharmacy,5 Sector 62,201301,+91-120-456-7890,false

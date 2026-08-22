@@ -1,0 +1,7 @@
+name,tier,prior_auth_required,copay,notes
+Metformin,1,false,10,Generic - preferred
+Atorvastatin,1,false,10,Generic - preferred
+Lisinopril,1,false,5,Generic - preferred
+Amoxicillin,1,false,8,Generic antibiotic
+Ozempic,3,true,75,Non-preferred brand - prior authorization required
+Humira,4,true,150,Specialty biologic - requires prior authorization
