@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -62,7 +62,12 @@ class TranscriptMessage(BaseModel):
 
 class TranscriptToolCall(BaseModel):
     kind: str = "tool_call"
-    timestamp: datetime
+    # ToolExecutionLog's column is created_at, not timestamp -- 500'd on any
+    # call with a real tool execution (found live, 2026-08-23) because
+    # model_validate(..., from_attributes=True) had nothing to read for a
+    # bare `timestamp` field. ConversationMessage genuinely has `.timestamp`
+    # (a different model, different column name) so that half worked fine.
+    timestamp: datetime = Field(validation_alias="created_at")
     tool_name: str
     input: dict
     output: str
