@@ -136,11 +136,19 @@
 }
 
 .transcript-section h4 {
-  margin: 0 0 10px;
+  margin: 0;
   font-size: 13px;
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.03em;
+}
+
+.transcript-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
 .transcript {

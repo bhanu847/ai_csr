@@ -122,7 +122,17 @@
       }
 
       <div class="transcript-section">
-        <h4>Transcript</h4>
+        <div class="transcript-head">
+          <h4>Transcript</h4>
+          <button
+            type="button"
+            class="btn btn-secondary btn-sm"
+            [disabled]="loading() || transcript().length === 0"
+            (click)="downloadTranscript()"
+          >
+            Download .txt
+          </button>
+        </div>
 
         @if (loading()) {
           <p class="hint">Loading transcript…</p>
