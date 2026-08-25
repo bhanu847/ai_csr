@@ -1,0 +1,269 @@
+=================================================================
+AI WORKFORCE — MANUAL TEST CHECKLIST (HINGLISH)
+AI Training Center (/training) + Workflows (/workflows)
+Taiyaar kiya gaya: 26 Aug 2026
+=================================================================
+
+KAISE USE KAREN
+-----------------
+Har test case mein: ID | Element | Pre-condition | Steps | Expected
+Result. Jo test cases "[RISKY]" marked hain, wo aapke live demo
+data ko permanently badal/hata dete hain (Delete, Acknowledge,
+Dismiss). Un cases ko ya to ek dummy/duplicate entry pe test karo,
+ya sirf ek baar, jaan-bujh kar karo — undo nahi ho sakta.
+
+=================================================================
+SECTION A — AI TRAINING CENTER (/training)
+=================================================================
+
+--- Page-level ---
+
+TC-AT-01 | Page load
+  Steps: /training page kholo.
+  Expected: "AI Training Center" heading, subtitle dikhe. Agar
+  data load ho raha ho to "Loading…" dikhe, load hone ke baad
+  insight cards ya empty-state dikhe.
+
+TC-AT-02 | Empty state
+  Pre-condition: Koi insight na ho (filtered tab mein 0 results).
+  Steps: Us tab pe jaao jahan koi insight nahi hai.
+  Expected: "No insights yet. Click 'Run analysis' to look for
+  patterns across recent calls." dikhe.
+
+TC-AT-03 | Error state
+  Pre-condition: Backend down ho ya API fail ho.
+  Steps: Page reload karo backend band karke.
+  Expected: Laal error-banner dikhe, page crash na ho.
+
+--- Run analysis button ---
+
+TC-AT-04 | Run analysis — click
+  Steps: Top-right blue "Run analysis" button click karo.
+  Expected: Button text "Analyzing…" ho jaaye aur disable ho jaaye
+  jab tak scan chal raha hai. Khatam hone pe naye/updated insights
+  list mein aa jaayein, aur ek hint message (last analysis result)
+  dikhe.
+
+TC-AT-05 | Run analysis — double click guard
+  Steps: Analysis chalte waqt dobara button click karne ki koshish
+  karo.
+  Expected: Button already disabled hai, dobara trigger na ho.
+
+--- Filter tabs ---
+
+TC-AT-06 | "All" tab
+  Steps: "All" tab pe click karo.
+  Expected: Sabhi status (new/acknowledged/dismissed) ke insights
+  dikhein. Yeh default selected tab honi chahiye.
+
+TC-AT-07 | "New" tab
+  Steps: "New" tab pe click karo.
+  Expected: Sirf status=new wale insights dikhein.
+
+TC-AT-08 | "Acknowledged" tab
+  Steps: "Acknowledged" tab pe click karo.
+  Expected: Sirf status=acknowledged wale insights dikhein.
+
+TC-AT-09 | "Dismissed" tab
+  Steps: "Dismissed" tab pe click karo.
+  Expected: Sirf status=dismissed wale insights dikhein, dimmed/
+  faded card styling ke saath.
+
+--- Insight card content ---
+
+TC-AT-10 | Category badge — colors sahi hain
+  Steps: Alag-alag category wale insights dekho.
+  Expected: MISSING_KNOWLEDGE = accent/blue badge,
+  PROMPT_IMPROVEMENT = warning/orange badge,
+  WORKFLOW_IMPROVEMENT = neutral/grey badge.
+
+TC-AT-11 | Status badge — colors sahi hain
+  Steps: New/Acknowledged/Dismissed insights dekho.
+  Expected: new = warning/orange, acknowledged = good/green,
+  dismissed = neutral/grey.
+
+TC-AT-12 | Supporting example count aur date
+  Steps: Kisi insight card ke footer ko dekho.
+  Expected: "N supporting example(s) · <date>" sahi format mein
+  dikhe.
+
+--- Action buttons ---
+
+TC-AT-13 [RISKY] | Acknowledge button
+  Pre-condition: Ek "New" status wala insight.
+  Steps: Us insight ke "Acknowledge" button pe click karo.
+  Expected: Status "acknowledged" ho jaaye, badge green ho jaaye,
+  "Acknowledge" button gayab ho jaaye (kyunki ab already
+  acknowledged), sirf "Dismiss" bacha rahe. Yeh permanent hai —
+  wapas "New" nahi kar sakte UI se.
+
+TC-AT-14 [RISKY] | Dismiss button
+  Pre-condition: Koi bhi insight (new ya acknowledged).
+  Steps: "Dismiss" button pe click karo.
+  Expected: Status "dismissed" ho jaaye, card dim/faded dikhe,
+  "Dismissed" tab mein move ho jaaye.
+
+TC-AT-15 | Acknowledged insight pe Acknowledge button na dikhna
+  Pre-condition: Ek insight jo already acknowledged hai.
+  Steps: Us card ko dekho.
+  Expected: Sirf "Dismiss" button dikhe, "Acknowledge" nahi
+  (jaisa Card 2 example mein tha: "Enhance empathy...").
+
+=================================================================
+SECTION B — WORKFLOWS (/workflows)
+=================================================================
+
+--- List page ---
+
+TC-WF-01 | Page load
+  Steps: /workflows page kholo.
+  Expected: "Workflows" heading, subtitle, existing workflow cards
+  (agar koi hain), aur "Create workflow" form neeche dikhe.
+
+TC-WF-02 | Empty state
+  Pre-condition: Koi workflow na ho.
+  Expected: "No workflows yet." message dikhe.
+
+TC-WF-03 | Workflow card — badges sahi
+  Steps: Ek workflow card dekho (jaise "Pharmacy Change Request").
+  Expected: Department badge (ya "all departments" agar khaali),
+  aur is_active badge ("active" green / "inactive" neutral) sahi
+  dikhein.
+
+TC-WF-04 | Workflow card — trigger aur step count
+  Steps: Card ka body dekho.
+  Expected: "When: <trigger_description>" aur "N step(s)" sahi
+  dikhein.
+
+TC-WF-05 | Workflow card click — navigate to detail
+  Steps: Workflow ke naam/card pe click karo (Activate/Delete
+  buttons ke bahar).
+  Expected: Detail page (/workflows/:id) khule, sab fields
+  pre-filled dikhein.
+
+TC-WF-06 | Activate / Deactivate toggle
+  Steps: "Deactivate" (ya "Activate") button click karo.
+  Expected: Badge turant "active"<->"inactive" switch ho, button
+  label bhi switch ho ("Deactivate" <-> "Activate"). Delete nahi
+  hota, sirf on/off hota hai — safe hai, reversible hai.
+
+TC-WF-07 [RISKY] | Delete button — confirmation dialog
+  Steps: "Delete" (red) button click karo.
+  Expected: Confirmation dialog khule: "Delete workflow? This will
+  permanently delete '<name>'. This cannot be undone."
+
+TC-WF-08 [RISKY] | Delete — confirm
+  Pre-condition: TC-WF-07 se dialog khula hai.
+  Steps: "Delete" confirm button click karo.
+  Expected: Workflow list se hamesha ke liye hat jaaye. Undo
+  nahi ho sakta.
+
+TC-WF-09 | Delete — cancel
+  Pre-condition: TC-WF-07 se dialog khula hai.
+  Steps: "Cancel" ya dialog ke bahar click karo.
+  Expected: Dialog band ho jaaye, workflow list mein waisa hi rahe.
+
+--- Create workflow form ---
+
+TC-WF-10 | Name — required validation
+  Steps: Name khaali chhod ke "Create" submit karo.
+  Expected: Browser required-field validation roke, form submit
+  na ho.
+
+TC-WF-11 | Trigger — required validation
+  Steps: Trigger khaali chhod ke submit karo.
+  Expected: Same — required validation roke.
+
+TC-WF-12 | Department dropdown
+  Steps: Dropdown kholo.
+  Expected: "All departments" + har available department option
+  dikhe.
+
+TC-WF-13 | Create button — success
+  Steps: Valid Name + Trigger bharo, Department choose karo,
+  "Create" click karo.
+  Expected: Button "Creating…" dikhaye, disable ho jaaye. Success
+  pe naya workflow card list ke top/bottom mein turant dikhe, form
+  reset ho jaaye.
+
+--- Detail page (ek workflow kholne ke baad) ---
+
+TC-WF-14 | Name/Trigger/Department fields — editable
+  Steps: Teeno fields ko edit karo.
+  Expected: Input properly update ho, koi error na aaye.
+
+TC-WF-15 | Active checkbox
+  Steps: Checkbox toggle karo.
+  Expected: Checked/unchecked state visually reflect ho.
+
+TC-WF-16 | "+ Add step" button
+  Steps: Click karo.
+  Expected: Steps list mein ek naya row add ho, saath hi step
+  number (N+1) sahi dikhe.
+
+TC-WF-17 | Step — tool dropdown
+  Steps: Kisi step ke tool-select dropdown ko kholo.
+  Expected: Saare 12 available tools list mein dikhein
+  (search_documents, schedule_appointment, escalate_to_human,
+  verify_member, check_claim_status, get_benefits,
+  search_formulary, find_pharmacy, create_ticket,
+  schedule_callback, send_email, update_customer).
+
+TC-WF-18 | Step — condition input
+  Steps: Condition text box mein kuch likho (jaise "only if member
+  is verified").
+  Expected: Text properly save ho, koi character-limit error na
+  aaye (chhote text ke liye).
+
+TC-WF-19 | Step — move up (↑)
+  Pre-condition: Kam se kam 2 steps hain.
+  Steps: 2nd (ya baad wale) step ka ↑ button click karo.
+  Expected: Step ek position upar move ho jaaye, step numbers
+  update ho jaayein.
+
+TC-WF-20 | Step — move down (↓)
+  Steps: Kisi step ka ↓ button click karo (last step ke alawa).
+  Expected: Step ek position neeche move ho jaaye.
+
+TC-WF-21 | Step — ↑ disabled on first step
+  Steps: Pehle step ka ↑ button dekho.
+  Expected: Disabled ho, click na ho sake.
+
+TC-WF-22 | Step — ↓ disabled on last step
+  Steps: Aakhri step ka ↓ button dekho.
+  Expected: Disabled ho.
+
+TC-WF-23 | Step — Remove button
+  Steps: Kisi step ka "Remove" button click karo.
+  Expected: Wo step list se hat jaaye, baaki steps ki numbering
+  automatically update ho jaaye. (Save karne tak yeh temporary
+  hai — reload karoge to purana state wapas aa sakta hai agar
+  save nahi kiya.)
+
+TC-WF-24 | Zero steps — empty hint
+  Pre-condition: Saare steps remove kar diye ho.
+  Expected: "No steps yet — add the tools the AI should call, in
+  order." hint dikhe.
+
+TC-WF-25 | Save changes button
+  Steps: Koi bhi field/step edit karke "Save changes" click karo.
+  Expected: Button "Saving…" dikhaye. Success ke baad, page reload
+  karke confirm karo ki changes persist hue (name/trigger/
+  department/active-state/steps sab).
+
+TC-WF-26 | Save with invalid state
+  Steps: Name ya Trigger ko khaali karke Save karne ki koshish
+  karo.
+  Expected: Required-field validation roke, save na ho.
+
+=================================================================
+PRIORITY SUGGESTION
+=================================================================
+Pehle yeh non-destructive cases karo (safe hain, kabhi bhi
+dobara test kar sakte ho):
+  TC-AT-01,02,06-12  |  TC-WF-01-06,10-26 (Save tak)
+
+Phir yeh [RISKY] cases sochkar/dummy data pe karo:
+  TC-AT-13,14  |  TC-WF-07,08
+
+=================================================================
