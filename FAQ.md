@@ -10,15 +10,15 @@ Answers to the questions asked while building this out. For full system docs (ar
 
 Every turn runs through five steps **in sequence, not streaming** — each one waits for a full result before the next starts:
 
-| Step | What happens | Time (CPU, no GPU) |
+| Step | What happens | Measured (this project's CPU-only dev machine — Intel UHD 620 iGPU, no discrete GPU) |
 |---|---|---|
 | Silence detection | The system waits 700ms of silence after you stop talking before it even starts processing (`SILENCE_DURATION_MS = 700` in `vad.py`) | 0.7s fixed |
-| Speech-to-text | Your whole utterance transcribed locally by faster-whisper (`base` model) | ~0.3–2s |
-| LLM thinks | Ollama (local, `qwen3:8b` by default) generates the complete reply before returning anything | ~1–4s |
-| *(if a tool is used, e.g. a claim lookup)* | DB lookups are fast (~10–100ms), but a knowledge search adds a local embedding call, and using a tool means a **second** full LLM round-trip for the final reply | +1–4s |
-| Text-to-speech | Full audio synthesized locally by Piper before anything is sent back | ~0.2–1s |
+| Speech-to-text | Your whole utterance transcribed locally by faster-whisper (`base` model) | ~1.5s warm (measured) |
+| LLM thinks | Ollama (local, `qwen3:1.7b` by default, thinking disabled — see below) generates the complete reply before returning anything | ~15–19s warm (measured). `qwen3:8b`, the heavier alternative, measured **~140–150s per call on this hardware** — unusable live; only consider it with a GPU, which hasn't been measured here. |
+| *(if a tool is used, e.g. a claim lookup)* | DB lookups are fast (~10–100ms), but a knowledge search adds a local embedding call, and using a tool means a **second** full LLM round-trip for the final reply | roughly another LLM-step's worth of time |
+| Text-to-speech | Full audio synthesized locally by Piper before anything is sent back | ~400–470ms warm (measured) |
 
-**Simple reply:** ~2–7 seconds on CPU. **Reply needing a tool/database lookup:** ~4–10 seconds. This is the direct tradeoff of the open-source/self-hosted swap (see [README.md § 1](README.md#1-tech-stack)): $0 per call instead of Azure's paid, GPU-backed inference, but slower on ordinary CPU hardware — a GPU (for Ollama and/or faster-whisper) meaningfully closes the gap, especially the LLM step, which dominates the total.
+**On this machine:** a simple reply is in the ~17–22 second range end-to-end, dominated almost entirely by the LLM step — a tool-using reply roughly doubles that. These are real measurements, not estimates, and they're specific to CPU-only inference on modest laptop hardware with no GPU; a GPU (for Ollama especially) would change this substantially, but that hasn't been tried. This is the direct tradeoff of the self-hosted swap (see [README.md § 1](README.md#1-tech-stack)): $0 per call, but slower than hosted GPU-backed inference unless you provide your own GPU.
 
 Nothing is streaming today (not STT, not the LLM, not TTS) — that's the single biggest lever to cut perceived latency if it ever needs to feel snappier.
 

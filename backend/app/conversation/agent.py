@@ -6,6 +6,7 @@ from sqlalchemy import select
 
 from app.conversation.orchestrator import ConversationSession
 from app.conversation.persistence import persist_message, persist_tool_execution
+from app.fastpath.service import get_instant_answer_model
 from app.llm.client import chat_completion
 from app.models.call import Call
 from app.models.conversation_message import MessageRole
@@ -59,6 +60,26 @@ def run_turn(session: ConversationSession, ctx: CallContext) -> str:
                     }
                 )
                 call.pending_suggestion = None
+
+    # Instant-answer fast path: a confident match skips the LLM/tool loop
+    # entirely (~1ms, no model call). Only ever answers static, non-
+    # personalized FAQ facts and generic conversational turns -- its
+    # training data (app/fastpath/data/faq_intents.json) explicitly lists
+    # every claims/benefits/formulary/pharmacy-lookup/verification-shaped
+    # question as out-of-scope, so those always fall through below
+    # unchanged. Never active during an in-progress tool exchange (awaiting
+    # a pending_suggestion/hold check above, or mid-verification) because
+    # it only ever looks at this turn's own utterance, same as the
+    # existing routing check in media_stream_handler.
+    if session.history and session.history[-1].get("role") == "user":
+        instant_model = get_instant_answer_model()
+        if instant_model is not None:
+            prediction = instant_model.predict(session.history[-1].get("content", ""))
+            if prediction.accepted:
+                reply = instant_model.intents[prediction.intent].answer
+                session.add_assistant_message(reply)
+                _persist_assistant_reply(ctx, reply)
+                return reply
 
     handlers = build_tool_handlers(ctx)
     # Scoped to the active department (see app.tools.department_tools) — a

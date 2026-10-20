@@ -1,42 +1,41 @@
-import io
-import wave
-
-import httpx
+import numpy as np
+from faster_whisper import WhisperModel
 
 from app.config import settings
 
-_AZURE_STT_PATH = "/speech/recognition/conversation/cognitiveservices/v1"
+_model: WhisperModel | None = None
+
+
+def _get_model() -> WhisperModel:
+    global _model
+    if _model is None:
+        _model = WhisperModel(
+            settings.whisper_model_size,
+            device=settings.whisper_device,
+            compute_type=settings.whisper_compute_type,
+        )
+    return _model
 
 
 def transcribe_pcm16(audio: bytes, sample_rate: int = 16000) -> str:
-    """Recognize a single utterance from raw 16-bit mono PCM audio via
-    Azure AI Speech's short-audio REST API. The caller (media stream
-    handler) already VAD-segments a complete utterance (capped at 15s)
-    before calling this, well within this endpoint's limits."""
+    """Recognize a single utterance from raw 16-bit mono PCM audio via a
+    self-hosted faster-whisper model. The caller (media stream handler)
+    already VAD-segments a complete utterance (capped at 15s) before
+    calling this."""
     if not audio:
         return ""
+    if sample_rate != 16000:
+        raise ValueError(f"faster-whisper expects 16kHz audio, got {sample_rate}")
 
-    wav_buffer = io.BytesIO()
-    with wave.open(wav_buffer, "wb") as wav_file:
-        wav_file.setnchannels(1)
-        wav_file.setsampwidth(2)
-        wav_file.setframerate(sample_rate)
-        wav_file.writeframes(audio)
-
-    url = f"https://{settings.azure_speech_region}.stt.speech.microsoft.com{_AZURE_STT_PATH}"
-    response = httpx.post(
-        url,
-        params={"language": settings.stt_language, "format": "simple"},
-        headers={
-            "Ocp-Apim-Subscription-Key": settings.azure_speech_key,
-            "Content-Type": f"audio/wav; codecs=audio/pcm; samplerate={sample_rate}",
-            "Accept": "application/json",
-        },
-        content=wav_buffer.getvalue(),
-        timeout=10.0,
+    samples = np.frombuffer(audio, dtype=np.int16).astype(np.float32) / 32768.0
+    # faster-whisper wants a bare ISO 639-1 code ("en"); stt_language is kept
+    # in BCP-47 form ("en-US") since the same setting also used to feed
+    # Azure Speech, which wants the locale tag.
+    language = settings.stt_language.split("-")[0]
+    segments, _ = _get_model().transcribe(
+        samples,
+        language=language,
+        beam_size=1,
+        vad_filter=False,  # utterance is already VAD-segmented upstream
     )
-    response.raise_for_status()
-    data = response.json()
-    if data.get("RecognitionStatus") != "Success":
-        return ""
-    return data.get("DisplayText", "").strip()
+    return " ".join(segment.text.strip() for segment in segments).strip()

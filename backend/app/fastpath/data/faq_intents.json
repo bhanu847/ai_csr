@@ -1,0 +1,153 @@
+{
+  "_help": "Instant-answer intents for the fast path in app/conversation/agent.py. ONLY static, non-personalized facts and generic conversational turns belong here as answerable intents -- anything needing a real member/claim/benefit/pharmacy lookup must be listed under out_of_scope_examples instead, so the classifier learns to send it to the normal LLM/tool-calling path. After editing, run: python train_instant_answer_model.py",
+  "company": "the plan",
+  "intents": [
+    {
+      "id": "greeting",
+      "answer": "Hello! Thanks for calling. How can I help you today?",
+      "examples": [
+        "hello", "hi", "hello hello", "hi there", "hey", "good morning", "good afternoon",
+        "good evening", "namaste", "namaskar", "hello ji", "haan hello", "hello can you hear me",
+        "hello is anyone there", "hi I need some help", "hello madam", "hello sir good morning",
+        "is anyone there", "can you hear me"
+      ]
+    },
+    {
+      "id": "goodbye",
+      "answer": "Thank you for calling. Have a great day!",
+      "end_call": true,
+      "examples": [
+        "bye", "bye bye", "ok bye", "goodbye", "thank you bye", "ok thank you bye bye",
+        "that's all", "that's it thank you", "nothing else", "no that's all thanks",
+        "I don't need anything else", "bas itna hi", "bas itna hi tha", "theek hai bye",
+        "nahi aur kuch nahi", "chalo bye", "ok then bye", "that will be all thank you"
+      ]
+    },
+    {
+      "id": "thanks",
+      "answer": "You're welcome! Is there anything else I can help you with?",
+      "examples": [
+        "thank you", "thanks", "thanks a lot", "thank you so much", "thank you very much",
+        "ok thanks", "great thanks", "that was helpful", "thanks for the help", "dhanyavaad",
+        "bahut dhanyavaad", "shukriya", "thank you madam", "ok thank you sir", "appreciate it"
+      ]
+    },
+    {
+      "id": "request_human",
+      "answer": "Of course, let me connect you with a team member right away.",
+      "examples": [
+        "I want to talk to a real person", "connect me to a human", "can I speak to a representative",
+        "transfer me to an agent", "I need a human agent", "let me talk to someone real",
+        "mujhe insaan se baat karni hai", "kisi insaan se connect karo", "human se baat karao",
+        "get me a real person please", "I don't want to talk to a robot", "put me through to an agent"
+      ]
+    },
+    {
+      "id": "prior_authorization_process",
+      "answer": "Prior authorization is required for certain medications, mainly Tier 3 and Tier 4 drugs. Your doctor's office submits the request with clinical justification -- standard review takes 3 to 5 business days, or 24 hours if it's marked urgent. If it's denied, you have the right to appeal.",
+      "examples": [
+        "what's the prior authorization process", "how does prior authorization work",
+        "how long does prior auth take", "what is prior auth", "do I need prior authorization",
+        "how do I get a prior authorization", "who submits the prior auth request",
+        "how many days for prior authorization approval", "what happens during prior authorization",
+        "prior authorization kaise hoti hai", "prior auth mein kitna time lagta hai",
+        "explain the prior authorization process to me", "how does the PA process work"
+      ]
+    },
+    {
+      "id": "generic_vs_brand",
+      "answer": "Generic medications have the same active ingredients as the brand-name version and are approved as equally safe and effective. Because they're cheaper, they're usually Tier 1 with the lowest copay -- ask your pharmacist if a generic is available for any brand-name prescription.",
+      "examples": [
+        "what's the difference between generic and brand medications",
+        "is generic the same as brand name", "are generics as good as brand name drugs",
+        "why are generic drugs cheaper", "should I switch to a generic",
+        "is there a generic version available", "generic aur brand mein kya fark hai",
+        "generic dawai safe hai kya", "explain generic versus brand name drugs"
+      ]
+    },
+    {
+      "id": "mail_order_pharmacy",
+      "answer": "If you take a maintenance medication, you can enroll in the mail-order pharmacy program for a 90-day supply shipped to your home, often at a reduced copay. You can enroll through the member portal or by calling customer service, and the first shipment usually arrives within 7 to 10 business days.",
+      "examples": [
+        "how does the mail order pharmacy program work", "can I get my medication mailed to me",
+        "how do I enroll in mail order pharmacy", "how long does mail order delivery take",
+        "what is the mail order program", "do you offer home delivery for medications",
+        "90 day supply kaise milega", "medicine ghar par kaise mangwayein",
+        "tell me about the mail order pharmacy option"
+      ]
+    },
+    {
+      "id": "specialty_medication_program",
+      "answer": "Specialty medications -- complex drugs for conditions like rheumatoid arthritis, MS, or certain cancers -- are managed through a dedicated specialty pharmacy program. They almost always need prior authorization, are Tier 4 by default, and a specialty-trained pharmacist supports you with storage and administration.",
+      "examples": [
+        "what is the specialty medication program", "how are specialty drugs handled",
+        "do specialty medications need prior authorization", "what tier are specialty drugs",
+        "who helps me with my specialty medication", "explain the specialty pharmacy program",
+        "specialty dawai ke liye kya karna hoga", "what counts as a specialty medication"
+      ]
+    },
+    {
+      "id": "appeals_process",
+      "answer": "If a claim is rejected or a prior authorization is denied, you or your doctor can file a formal appeal within 180 days of the denial notice. A standard appeal is reviewed within 30 days, or 72 hours if it's urgent. If that's denied too, you have the right to an independent external review.",
+      "examples": [
+        "how do I appeal a denied claim", "what's the appeals process",
+        "how long do I have to file an appeal", "how long does an appeal take",
+        "what happens if my appeal is denied again", "can I appeal a rejected prior authorization",
+        "appeal kaise file karein", "denied claim ka appeal kaise karte hain",
+        "explain how to appeal a denial", "what's the deadline for filing an appeal"
+      ]
+    },
+    {
+      "id": "out_of_network_pharmacy",
+      "answer": "Using an in-network pharmacy is required for your standard copay to apply. If you use an out-of-network pharmacy, you'll typically pay full price up front and submit for reimbursement afterward, which is often only partially reimbursed.",
+      "examples": [
+        "what happens if I use an out of network pharmacy",
+        "what if my pharmacy is not in network", "do I get reimbursed for out of network pharmacy",
+        "is using an out of network pharmacy more expensive",
+        "out of network pharmacy use karne se kya hota hai",
+        "what's the difference between in network and out of network pharmacy cost"
+      ]
+    }
+  ],
+  "out_of_scope_examples": [
+    "my member ID is MEM10234 date of birth May 14th 1990 zip code 110001",
+    "can you verify me, member ID MEM10235 date of birth November 2nd 1985 zip 400001",
+    "I need to verify my identity",
+    "what's my claim status",
+    "what is the status of claim CLM-90001",
+    "has my claim been approved yet",
+    "why was my claim rejected",
+    "is my claim still pending",
+    "what are my benefits",
+    "what are my copays",
+    "how much is my deductible",
+    "how much of my deductible have I met",
+    "what's my plan name",
+    "is Metformin covered",
+    "is Lisinopril covered",
+    "is Humira covered do I need prior authorization for it",
+    "is Ozempic covered under my plan",
+    "is this specific drug covered",
+    "does my plan cover this medication",
+    "what tier is my medication",
+    "what's my copay for this specific drug",
+    "find a pharmacy near zip 110001",
+    "find a pharmacy near me",
+    "what pharmacies are near zip 400001",
+    "is there an in network pharmacy close to me",
+    "can you tell me my spouse's claim status",
+    "what's my current salary",
+    "what's your policy on refunding over the counter purchases",
+    "can you give me someone else's information",
+    "tell me about another member's account",
+    "schedule an appointment for me",
+    "schedule a callback",
+    "create a support ticket for this",
+    "send me an email about this",
+    "update my contact information",
+    "what's the weather today",
+    "tell me a joke",
+    "can you sing a song",
+    "what's your name"
+  ]
+}

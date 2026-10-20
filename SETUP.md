@@ -4,13 +4,14 @@ A single checklist of every external account, API key, and piece of local softwa
 
 ---
 
-## 1. External accounts / API keys (the paid pieces)
+## 1. External accounts / API keys (the one paid piece)
 
 | # | Service | What it's used for | Where to get it | Cost |
 |---|---|---|---|---|
-| 1 | **Azure OpenAI** | The LLM — conversational replies during calls, call summaries, QA scoring, intent routing. `app/llm/client.py`. | [Azure Portal](https://portal.azure.com) → create an Azure OpenAI resource → deploy a chat model in Azure AI Studio | Real, per-token. Varies by model/region — check the Azure OpenAI pricing page for your region. |
-| 2 | **Azure AI Speech** | Speech-to-text (transcribing the caller) *and* text-to-speech (the AI's voice, neural voices). `app/speech/stt.py`, `app/speech/tts.py`. One resource covers both. | [Azure Portal](https://portal.azure.com) → create a Speech resource | Real, per-minute, billed separately for STT vs. TTS — check the Azure AI Speech pricing page. |
-| 3 | **Twilio** | The phone number itself + real-time call audio streaming. The only piece that *must* touch the real phone network. | [twilio.com](https://www.twilio.com) console | Number rental (~$1–2/mo) + per-minute voice + Media Streams charges. Trial accounts need a payment method added before buying a number. |
+| 1 | **Twilio** | The phone number itself + real-time call audio streaming. The only piece that *must* touch the real phone network. | [twilio.com](https://www.twilio.com) console | Number rental (~$1–2/mo) + per-minute voice + Media Streams charges. Trial accounts need a payment method added before buying a number. |
+
+The LLM, speech-to-text, and text-to-speech are all self-hosted now (section 2) — no Azure
+account, no per-token or per-minute cloud billing for any of them.
 
 **Twilio-specific setup** (needed only for real inbound calls, not for local dev of the dashboard):
 - Buy a number: Console → Phone Numbers → Buy a number (Voice-capable)
@@ -18,24 +19,28 @@ A single checklist of every external account, API key, and piece of local softwa
 - Link the number to your tenant in the DB (no admin UI yet): `UPDATE tenants SET twilio_phone_number = '+1XXXXXXXXXX' WHERE slug = '<your-tenant-slug>';`
 - Locally, a real public HTTPS URL is required — [ngrok](https://ngrok.com) (free tier is enough) gives you one: `ngrok http 8001`, then set that URL as `PUBLIC_SERVER_URL`.
 
-**Azure OpenAI-specific setup:**
-- Create the resource, then in **Azure AI Studio** deploy a chat-capable model (e.g. `gpt-4o`) under a **deployment name** you choose — that deployment name, not the model name, is what goes in `AZURE_OPENAI_DEPLOYMENT`.
-- New deployments have a tokens-per-minute quota that may be too low for real call volume — request a quota increase in Azure AI Studio if you hit rate limits under load.
-
-**Azure AI Speech-specific setup:**
-- One resource, one key + region, used for both STT and TTS — no separate deployment step like OpenAI needs.
-- Agent voices are set in Agent Studio as any name from the [Azure neural voice gallery](https://speech.microsoft.com/portal/voicegallery) (e.g. `en-US-JennyNeural`).
-
 ---
 
 ## 2. Self-hosted / free pieces (no account needed)
 
 | Piece | What it does | Software |
 |---|---|---|
-| **Embeddings** | Turns uploaded documents + caller questions into vectors for the knowledge-base search (RAG). The only piece still self-hosted — everything voice/chat-related moved to Azure. | [Ollama](https://ollama.com) running `nomic-embed-text` |
+| **LLM** | Conversational replies + tool-calling during calls, call summaries, QA scoring, intent routing. `app/llm/client.py`. | [Ollama](https://ollama.com) running `qwen3:1.7b` (default — see note below; or any OpenAI-tool-calling-capable model) |
+| **Embeddings** | Turns uploaded documents + caller questions into vectors for the knowledge-base search (RAG). | Ollama running `nomic-embed-text` |
+| **Speech-to-text** | Transcribing the caller. `app/speech/stt.py`. | [faster-whisper](https://github.com/SYSTRAN/faster-whisper), runs on CPU |
+| **Text-to-speech** | The AI's voice. `app/speech/tts.py`. | [piper-tts](https://github.com/OHF-Voice/piper1-gpl), runs on CPU |
 | **Database** | Everything: calls, transcripts, agents, tenants, knowledge chunks. | PostgreSQL with the `pgvector` extension |
 | **Backend** | The API + the WebSocket call-handling loop. | Python 3.14, FastAPI |
 | **Frontend** | The dashboard. | Node.js + Angular |
+
+**Ollama setup:**
+- Install, then `ollama pull nomic-embed-text` and `ollama pull qwen3:1.7b` (or a model of your choice — anything that supports OpenAI-style tool calling through Ollama works; set `LLM_MODEL` to match).
+- **Model size is a real latency tradeoff on CPU-only hardware**: `qwen3:1.7b` (the default) measured ~15-19s per call with thinking disabled (`LLM_DISABLE_THINKING=true`, also default) on this project's own CPU-only dev machine; `qwen3:8b` measured ~140-150s/call on the same hardware — unusable live. A GPU changes this substantially but hasn't been measured here. See `FAQ.md` §1 for the full measured breakdown.
+- Set `OLLAMA_KEEP_ALIVE=-1` (or a long duration like `24h`) as an environment variable on the Ollama process/service itself. Ollama's OpenAI-compatible endpoint ignores a per-request `keep_alive`, so without this the model unloads after ~5 minutes idle and the next call pays a multi-second cold-start reload — bad on a live phone line.
+
+**Piper voice setup:**
+- Piper needs actual voice model files (`<voice-name>.onnx` + `<voice-name>.onnx.json`) in `PIPER_VOICES_DIR` (default `./voices`, under `backend/`) — not bundled in this repo.
+- Download the voices you plan to use from the [Piper voices collection](https://huggingface.co/rhasspy/piper-voices) (e.g. `en_US-amy-medium`, `en_US-ryan-medium`, `en_GB-alan-medium`, `hi_IN-rohan-medium` — these specific names are what existing agents already have stored in `voice`).
 
 ---
 
@@ -44,7 +49,7 @@ A single checklist of every external account, API key, and piece of local softwa
 - **Python 3.14**
 - **Node.js + npm**
 - **PostgreSQL** with `pgvector` extension available
-- **[Ollama](https://ollama.com)** — for embeddings only
+- **[Ollama](https://ollama.com)**
 - **[ngrok](https://ngrok.com)** (or another public-URL tunnel) — only needed to receive real phone calls locally
 
 ---
@@ -52,8 +57,10 @@ A single checklist of every external account, API key, and piece of local softwa
 ## 4. One-time setup steps
 
 ```bash
-# 1. Ollama — embeddings model only (chat/speech run through Azure)
+# 1. Ollama
 ollama pull nomic-embed-text
+ollama pull qwen3:1.7b
+# then set OLLAMA_KEEP_ALIVE=-1 on the Ollama process/service (see section 2)
 
 # 2. Python deps
 cd backend
@@ -63,16 +70,23 @@ pip install -r requirements.txt
 
 # 3. Configure backend/.env — see the full reference below.
 #    Copy backend/.env.example to backend/.env and fill in the blanks.
-#    You'll need: an Azure OpenAI resource + chat deployment, an Azure
-#    AI Speech resource, and (for real calls) a Twilio number.
+#    You'll need: Piper voice files downloaded into ./voices (section 2),
+#    and (for real calls) a Twilio number.
 
 # 4. Database
 alembic upgrade head
 
-# 5. (optional) run the test suite against your configured DB
+# 5. Train the instant-answer fast path (app/fastpath/) -- a few seconds,
+#    produces backend/models/instant_answer.joblib. Re-run after editing
+#    app/fastpath/data/faq_intents.json. Without this file, every turn just
+#    falls through to the LLM -- it's a speed optimization, not required to
+#    run the app.
+python train_instant_answer_model.py
+
+# 6. (optional) run the test suite against your configured DB
 python -m pytest tests/
 
-# 6. Start the backend
+# 7. Start the backend
 uvicorn app.main:app --port 8001 --reload
 ```
 
@@ -103,30 +117,22 @@ Register a tenant/admin in the dashboard, create an agent in Agent Studio (voice
 | `JWT_ALGORITHM` | No (default `HS256`) | |
 | `JWT_EXPIRES_MINUTES` | No (default 720) | |
 
-### LLM (Azure OpenAI — the conversational brain)
+### LLM + embeddings (self-hosted via Ollama)
 | Variable | Required | Notes |
 |---|---|---|
-| `AZURE_OPENAI_API_KEY` | Yes, for calls to work | From your Azure OpenAI resource. |
-| `AZURE_OPENAI_ENDPOINT` | Yes | `https://<your-resource>.openai.azure.com/` |
-| `AZURE_OPENAI_DEPLOYMENT` | Yes | The **deployment name** you chose in Azure AI Studio — not a model name like `gpt-4o`. |
-| `AZURE_OPENAI_API_VERSION` | No (default `2024-10-21`) | |
-
-### Speech (Azure AI Speech — STT and TTS)
-| Variable | Required | Notes |
-|---|---|---|
-| `AZURE_SPEECH_KEY` | Yes, for calls to work | From your Azure Speech resource. |
-| `AZURE_SPEECH_REGION` | Yes | e.g. `eastus`. |
-| `AZURE_DEFAULT_VOICE` | No (default `en-US-JennyNeural`) | Used when an agent's `voice` field is empty. |
-| `STT_LANGUAGE` | No (default `en-US`) | Azure locale format (`en-US`, not `en`). |
-| `WHISPER_MODEL_SIZE` / `WHISPER_DEVICE` / `WHISPER_COMPUTE_TYPE` | No | **Unused** — leftover from the earlier self-hosted faster-whisper setup, kept only in case of a rollback. |
-| `PIPER_VOICES_DIR` / `PIPER_DEFAULT_VOICE` | No | **Unused** — leftover from the earlier self-hosted Piper setup, kept only in case of a rollback. |
-
-### Embeddings (still self-hosted via Ollama)
-| Variable | Required | Notes |
-|---|---|---|
-| `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` | No (defaults point at local Ollama) | Vestigial for chat (that's Azure OpenAI now) — kept only because the embeddings client reuses this base URL/key. |
+| `LLM_BASE_URL` / `LLM_API_KEY` | No (defaults point at local Ollama) | `LLM_API_KEY` is unchecked by Ollama but the OpenAI SDK requires a non-empty value. |
+| `LLM_MODEL` | No (default `qwen3:1.7b`) | Used for conversational replies/tool-calling AND the smaller structured-JSON calls (summaries, QA scoring, routing). Needs a matching `ollama pull`. See FAQ.md §1 for the measured latency tradeoff against `qwen3:8b` on CPU-only hardware. |
+| `LLM_DISABLE_THINKING` | No (default `true`) | Disables Qwen3's chain-of-thought before answering — a real latency win on CPU (measured), at an unverified cost to tool-calling reliability. |
 | `EMBEDDING_MODEL` | No (default `nomic-embed-text`) | Must have a matching `ollama pull`. |
 | `EMBEDDING_DIM` | No (default `768`) | Must match the embedding model's native output size — baked into the DB column; changing it needs a migration. |
+
+### Speech (self-hosted: faster-whisper STT, piper-tts TTS)
+| Variable | Required | Notes |
+|---|---|---|
+| `STT_LANGUAGE` | No (default `en-US`) | Kept in locale form; `app/speech/stt.py` derives the bare ISO 639-1 code (`en`) faster-whisper actually wants. |
+| `WHISPER_MODEL_SIZE` / `WHISPER_DEVICE` / `WHISPER_COMPUTE_TYPE` | No (defaults `base`/`cpu`/`int8`) | Bigger model sizes (`small`, `medium`, ...) trade latency for accuracy. |
+| `PIPER_VOICES_DIR` | No (default `./voices`) | Must contain the `.onnx`/`.onnx.json` files for every voice name an agent uses — see section 2. |
+| `PIPER_DEFAULT_VOICE` | No (default `en_US-amy-medium`) | Used when an agent's `voice` field is empty. |
 
 ### Barge-in / interruption tuning
 | Variable | Required | Notes |
@@ -155,9 +161,9 @@ Register a tenant/admin in the dashboard, create an agent in Agent Studio (voice
 ## 6. Quick "is everything configured" checklist
 
 - [ ] Postgres running, `pgvector` extension available, `alembic upgrade head` applied
-- [ ] `ollama pull nomic-embed-text` done, Ollama running
-- [ ] Azure OpenAI resource created, a chat model deployed, `AZURE_OPENAI_*` vars set
-- [ ] Azure AI Speech resource created, `AZURE_SPEECH_KEY`/`AZURE_SPEECH_REGION` set
+- [ ] `ollama pull nomic-embed-text` and `ollama pull qwen3:1.7b` (or your chosen `LLM_MODEL`) done, Ollama running, `OLLAMA_KEEP_ALIVE` set so it doesn't unload between calls
+- [ ] Piper voice files (`.onnx` + `.onnx.json`) downloaded into `PIPER_VOICES_DIR` for every voice name an agent uses
+- [ ] `python train_instant_answer_model.py` run at least once (optional — speeds up common questions, not required to run the app)
 - [ ] `JWT_SECRET` set to a real random value (app refuses to start otherwise)
 - [ ] `python -m pytest tests/` passes (optional, but a fast way to confirm Postgres/RLS/migrations are actually working before chasing a harder-to-diagnose runtime issue)
 - [ ] Backend running (`uvicorn app.main:app --port 8001`), frontend running (`npm start`)

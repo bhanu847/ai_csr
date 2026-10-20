@@ -52,28 +52,36 @@ class Settings(BaseSettings):
             raise ValueError("JWT_SECRET must be at least 32 characters — it's too short to resist guessing.")
         return value
 
-    # Local/self-hosted LLM served through an OpenAI-compatible API — Ollama
-    # by default (ollama pull <llm_model>). Any OpenAI-compatible server
-    # (vLLM, LocalAI, llama.cpp server, ...) works by pointing the base URL
-    # at it; api_key is unchecked by Ollama but the SDK requires a value.
-    # Only embeddings still go through this client now (see rag/embeddings.py)
-    # — chat completions moved to the hosted Claude API for latency/scale.
+    # The one self-hosted LLM, served through an OpenAI-compatible API —
+    # Ollama by default (ollama pull <llm_model>). Any OpenAI-compatible
+    # server (vLLM, LocalAI, llama.cpp server, ...) works by pointing the
+    # base URL at it; api_key is unchecked by Ollama but the SDK requires a
+    # value. Used for embeddings (app/rag/embeddings.py) AND conversational
+    # replies + structured JSON extraction (app/llm/client.py) — no hosted
+    # LLM involved anywhere. Ollama's OpenAI-compat endpoint drops
+    # `keep_alive`, so set OLLAMA_KEEP_ALIVE on the Ollama process itself
+    # (not here) to stop the model unloading between calls on a live line.
+    #
+    # qwen3:1.7b is the default because, measured on this project's own
+    # CPU-only dev hardware (no GPU), qwen3:8b took ~140-150s per call --
+    # unusable for a live phone turn. qwen3:1.7b is ~15-19s with thinking
+    # disabled below: still slow for live conversation, but workable for
+    # development, and far better than the 8b model on CPU. A bigger model
+    # (qwen3:8b or larger) is a straight quality/tool-calling-reliability
+    # upgrade IF you have GPU hardware to run it at acceptable latency --
+    # that tradeoff hasn't been measured here, only the CPU numbers above.
     llm_base_url: str = "http://localhost:11434/v1"
     llm_api_key: str = "ollama"
-    llm_model: str = "qwen3:8b"
+    llm_model: str = "qwen3:1.7b"
 
-    # Hosted LLM for conversational replies + structured JSON extraction
-    # (call summaries, QA scoring, intent routing) — see app/llm/client.py.
-    # Azure OpenAI speaks the native OpenAI chat-completions API, so this
-    # is a straight endpoint swap, not a format adapter. Real per-token
-    # cost, unlike the self-hosted embedding/TTS pieces.
-    # azure_openai_deployment is the *deployment name* you chose in Azure
-    # AI Studio, not a model name like "gpt-4o" -- Azure routes by
-    # deployment, and deployment names are per-resource.
-    azure_openai_api_key: str = ""
-    azure_openai_endpoint: str = ""
-    azure_openai_deployment: str = ""
-    azure_openai_api_version: str = "2024-10-21"
+    # Qwen3 "thinks" (emits chain-of-thought) before answering by default,
+    # which on CPU-only inference adds real seconds of otherwise-invisible
+    # latency per call. Disabling it is a clear latency win; it's a
+    # genuine, UNVERIFIED tradeoff against tool-calling reliability on the
+    # 5-round PBM tool loop (app/conversation/agent.py) -- reasoning models
+    # sometimes use that chain-of-thought to pick the right tool. Flip to
+    # False to test with thinking back on.
+    llm_disable_thinking: bool = True
 
     # Local embedding model, also served by Ollama (ollama pull <model>).
     # embedding_dim MUST match the model's native output size — it's baked
@@ -81,23 +89,18 @@ class Settings(BaseSettings):
     embedding_model: str = "nomic-embed-text"
     embedding_dim: int = 768
 
-    # Speech-to-text and text-to-speech: Azure AI Speech, hosted. One key
-    # + region covers both (app/speech/stt.py, app/speech/tts.py). Real
-    # per-minute cost. whisper_*/piper_* settings below are unused now but
-    # left in place in case of a rollback to self-hosted speech.
+    # Speech-to-text (faster-whisper, app/speech/stt.py) and text-to-speech
+    # (piper-tts, app/speech/tts.py) — both self-hosted, no account/key
+    # needed. stt_language stays in BCP-47 form ("en-US") for display/
+    # consistency; stt.py derives the bare ISO 639-1 code faster-whisper
+    # actually wants ("en").
     stt_language: str = "en-US"
     whisper_model_size: str = "base"
     whisper_device: str = "cpu"
     whisper_compute_type: str = "int8"
-    azure_speech_key: str = ""
-    azure_speech_region: str = ""
 
-    # Azure neural voice used when an agent's `voice` field doesn't match a
-    # known name (see app/speech/tts.py's Piper-name compatibility map —
-    # existing agents still have Piper voice names stored from before this
-    # switch). Full neural voice list: https://speech.microsoft.com/portal/voicegallery
-    azure_default_voice: str = "en-US-JennyNeural"
-
+    # Piper voice model directory (.onnx + .onnx.json per voice) and the
+    # voice used when an agent's `voice` field is empty.
     piper_voices_dir: str = "./voices"
     piper_default_voice: str = "en_US-amy-medium"
 
