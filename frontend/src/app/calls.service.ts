@@ -35,6 +35,7 @@ export interface Citation {
 
 export interface TranscriptMessage {
   kind: 'message';
+  id: string;
   timestamp: string;
   role: 'customer' | 'assistant' | 'system' | 'tool';
   content: string;

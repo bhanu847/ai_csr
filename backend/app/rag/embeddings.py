@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 import httpx
 
 from app.config import settings
@@ -41,3 +43,16 @@ def embed_texts(texts: list[str], is_query: bool = False) -> list[list[float]]:
     )
     response.raise_for_status()
     return response.json()["embeddings"]
+
+
+@lru_cache(maxsize=2048)
+def _embed_query_cached(text: str) -> tuple[float, ...]:
+    return tuple(embed_texts([text], is_query=True)[0])
+
+
+def embed_query(text: str) -> list[float]:
+    """embed_texts for one search query, memoized: callers repeat the same
+    questions constantly, and the same utterance is embedded both for the
+    learned-answer lookup and again if feedback re-answers it from source.
+    A cache hit is ~0ms vs ~90ms for a warm Ollama round-trip."""
+    return list(_embed_query_cached(text.strip()))

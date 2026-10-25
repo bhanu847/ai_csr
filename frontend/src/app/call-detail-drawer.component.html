@@ -169,6 +169,51 @@
                       }
                     </div>
                   }
+                  @if (entry.role === 'assistant') {
+                    @let fb = feedbackFor(entry.id);
+                    <div class="feedback">
+                      @if (entry.message_type === 'instant' || entry.message_type === 'learned') {
+                        <span class="citation-chip">{{ entry.message_type === 'instant' ? 'instant answer' : 'learned answer' }}</span>
+                      }
+                      @switch (fb.status) {
+                        @case ('idle') {
+                          <button type="button" class="btn btn-ghost btn-sm" title="Good answer" aria-label="Good answer" (click)="rate(entry.id, true)">👍</button>
+                          <button type="button" class="btn btn-ghost btn-sm" title="Wrong answer" aria-label="Wrong answer" (click)="startCorrection(entry.id)">👎</button>
+                        }
+                        @case ('correcting') {
+                          <div class="feedback-form">
+                            <textarea
+                              rows="3"
+                              placeholder="What should it have said? Leave blank to re-answer from your documents."
+                              [value]="fb.correction"
+                              (input)="updateCorrection(entry.id, $any($event.target).value)"
+                            ></textarea>
+                            <div class="feedback-actions">
+                              <button type="button" class="btn btn-ghost btn-sm" (click)="cancelCorrection(entry.id)">Cancel</button>
+                              <button type="button" class="btn btn-primary btn-sm" (click)="rate(entry.id, false)">
+                                {{ fb.correction.trim() ? 'Save correction' : 'Re-answer from documents' }}
+                              </button>
+                            </div>
+                          </div>
+                        }
+                        @case ('saving') {
+                          <span class="hint">
+                            {{ fb.helpful || fb.correction.trim() ? 'Saving…' : 'Re-answering from your documents — this can take a minute…' }}
+                          </span>
+                        }
+                        @case ('done') {
+                          <span class="hint">{{ fb.message }}</span>
+                          @if (fb.learnedAnswer) {
+                            <p class="learned-answer">New answer: {{ fb.learnedAnswer }}</p>
+                          }
+                        }
+                        @case ('error') {
+                          <span class="feedback-error">{{ fb.message }}</span>
+                          <button type="button" class="btn btn-ghost btn-sm" (click)="startCorrection(entry.id)">Retry</button>
+                        }
+                      }
+                    </div>
+                  }
                 </div>
               }
               @if (entry.kind === 'tool_call') {

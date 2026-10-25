@@ -1,7 +1,15 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnInit, computed, signal } from '@angular/core';
 
+import { FeedbackService, LearnedAnswer } from './feedback.service';
 import { InsightCategory, InsightStatus, TrainingService } from './training.service';
+
+const ORIGIN_LABELS: Record<LearnedAnswer['origin'], string> = {
+  correction: 'Reviewer correction',
+  regenerated: 'Re-answered from documents',
+  confirmed: 'Confirmed by reviewer',
+  unanswered: 'Not in documents — always uses full AI',
+};
 
 const CATEGORY_LABELS: Record<InsightCategory, string> = {
   missing_knowledge: 'Missing knowledge',
@@ -24,10 +32,22 @@ export class TrainingCenterComponent implements OnInit {
     return filter === 'all' ? insights : insights.filter((i) => i.status === filter);
   });
 
-  constructor(protected readonly training: TrainingService) {}
+  constructor(
+    protected readonly training: TrainingService,
+    protected readonly feedback: FeedbackService,
+  ) {}
 
   ngOnInit(): void {
     this.training.refresh();
+    this.feedback.refreshLearned();
+  }
+
+  originLabel(origin: LearnedAnswer['origin']): string {
+    return ORIGIN_LABELS[origin] ?? origin;
+  }
+
+  onToggleLearned(answer: LearnedAnswer): void {
+    this.feedback.setActive(answer.id, !answer.active);
   }
 
   categoryLabel(category: InsightCategory): string {

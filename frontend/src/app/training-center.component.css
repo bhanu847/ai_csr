@@ -79,3 +79,7 @@
   margin: 0;
   flex: 1;
 }
+
+.learned-header {
+  margin-top: 32px;
+}

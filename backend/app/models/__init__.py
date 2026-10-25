@@ -7,6 +7,7 @@ from app.models.conversation_message import ConversationMessage
 from app.models.customer_profile import CustomerProfile
 from app.models.drug import Drug
 from app.models.knowledge import KnowledgeChunk, KnowledgeDocument
+from app.models.learned_answer import AnswerFeedback, LearnedAnswer
 from app.models.member import Member
 from app.models.pharmacy import Pharmacy
 from app.models.tenant import Tenant
@@ -18,6 +19,7 @@ from app.models.workflow import Workflow, WorkflowStep
 
 __all__ = [
     "Agent",
+    "AnswerFeedback",
     "Appointment",
     "AuditLog",
     "Call",
@@ -27,6 +29,7 @@ __all__ = [
     "Drug",
     "KnowledgeChunk",
     "KnowledgeDocument",
+    "LearnedAnswer",
     "Member",
     "Pharmacy",
     "Tenant",

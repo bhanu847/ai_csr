@@ -93,3 +93,26 @@ def test_choose_threshold_prefers_coverage_at_target_precision():
     stats = choose_threshold(proba, y, classes, target=0.95)
     assert stats.meets_target and stats.precision == 1.0
     assert 0.5 < stats.threshold <= 0.9
+
+
+def test_fast_scorer_matches_sklearn_exactly(trained):
+    model, _ = trained
+    assert model._fast is not None
+    texts = [q for q, _ in load_test_queries(DATA_DIR / "test_queries.json")] + ["", "zzz", "hello hello hello"]
+    from app.fastpath.textnorm import normalize
+    fast = np.vstack([model._fast.proba(normalize(t)) for t in texts])
+    assert np.allclose(fast, model.predict_proba(texts), atol=1e-9)
+
+
+def test_feedback_turns_wrong_instant_answers_into_out_of_scope():
+    from app.fastpath.intent_model import merge_feedback
+    data = load_intents(DATA_DIR / "faq_intents.json")
+    merged, stats = merge_feedback(data, {
+        "examples": {"greeting": ["hello there friend", "Hello there friend!"], "no_such_intent": ["x"]},
+        "out_of_scope_examples": ["hello is anyone there", "is humira covered do I need prior auth"],
+    })
+    assert stats == {"added_examples": 1, "added_oos": 2, "removed_examples": 1, "unknown_intents": ["no_such_intent"]}
+    assert "hello is anyone there" not in merged.intents["greeting"].examples  # marked wrong -> LLM wins
+    assert "hello is anyone there" in merged.oos_examples
+    assert "hello there friend" in merged.intents["greeting"].examples
+    assert len(data.intents["greeting"].examples) == len(merged.intents["greeting"].examples)  # original untouched

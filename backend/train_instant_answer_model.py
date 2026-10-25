@@ -2,19 +2,28 @@
 
     python train_instant_answer_model.py
     python train_instant_answer_model.py --target 0.97   # stricter: fewer instant answers, fewer mistakes
+    python train_instant_answer_model.py --feedback feedback.json   # learn from reviewer ratings
 
 Prints how often it answers instantly and how often those answers are right, in cross-validation
 and (if present) against app/fastpath/data/test_queries.json, a held-out set never used in training.
+
+--feedback takes the JSON from GET /api/feedback/fastpath-export: instant answers reviewers marked
+wrong become out-of-scope examples (sent to the LLM from now on), confirmed ones become extra
+examples. Those are real caller sentences -- read the file before training on it.
+
+A running server picks up the new model file within a few seconds; no restart needed.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import sys
 import time
 from pathlib import Path
 
-from app.fastpath.intent_model import OOS, IntentModel, load_intents, load_test_queries
+from app.fastpath.intent_model import OOS, IntentModel, load_intents, load_test_queries, merge_feedback
 
 ROOT = Path(__file__).resolve().parent
 DEFAULT_INTENTS = ROOT / "app" / "fastpath" / "data" / "faq_intents.json"
@@ -26,12 +35,19 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--intents", default=str(DEFAULT_INTENTS))
     ap.add_argument("--test", default=str(DEFAULT_TEST), help="held-out test questions (optional)")
+    ap.add_argument("--feedback", help="reviewer ratings from GET /api/feedback/fastpath-export (optional)")
     ap.add_argument("--out", default=str(DEFAULT_OUT))
     ap.add_argument("--target", type=float, default=0.95,
                     help="required precision of instant answers in cross-validation (default 0.95)")
     args = ap.parse_args()
 
     data = load_intents(args.intents)
+    if args.feedback:
+        data, fb = merge_feedback(data, json.loads(Path(args.feedback).read_text(encoding="utf-8")))
+        print(f"Feedback: +{fb['added_examples']} confirmed examples, +{fb['added_oos']} wrong answers "
+              f"now out-of-scope, {fb['removed_examples']} examples dropped as marked wrong")
+        if fb["unknown_intents"]:
+            print(f"  ignored feedback for intents no longer in {args.intents}: {fb['unknown_intents']}")
     n_ex = sum(len(i.examples) for i in data.intents.values())
     print(f"Training on {len(data.intents)} intents, {n_ex} examples, {len(data.oos_examples)} out-of-scope examples")
     t0 = time.perf_counter()
@@ -67,8 +83,12 @@ def main() -> int:
     else:
         print("\nNo held-out test file found -- only cross-validation numbers above are real evidence here.")
 
-    model.save(args.out)
-    print(f"\nSaved model to {args.out}")
+    # Write-then-rename so a running server never loads a half-written file.
+    out = Path(args.out)
+    tmp = out.with_name(out.name + ".tmp")
+    model.save(tmp)
+    os.replace(tmp, out)
+    print(f"\nSaved model to {out}")
     return 0
 
 

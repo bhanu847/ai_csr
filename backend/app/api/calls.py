@@ -50,6 +50,7 @@ class Citation(BaseModel):
 
 class TranscriptMessage(BaseModel):
     kind: str = "message"
+    id: uuid.UUID  # for POST /api/feedback
     timestamp: datetime
     role: MessageRole
     content: str

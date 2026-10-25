@@ -3,7 +3,8 @@
 What it is: TF-IDF features (character n-grams + word n-grams) feeding a logistic-regression
 classifier. It is tiny, trains in seconds, and predicts in about a millisecond with no LLM call.
 Character n-grams make it robust to Hinglish spelling variations ("kahan" / "kaha"), typos and
-speech-to-text mistakes.
+speech-to-text mistakes. At prediction time the fitted weights are applied directly (_FastScorer),
+skipping sklearn's per-call overhead: ~0.1ms per sentence instead of ~6ms.
 
 How it stays safe: during training it runs cross-validation and picks a confidence threshold
 so that, on questions it has never seen, its instant answers are right at least
@@ -12,6 +13,11 @@ instantly - it falls through to the normal LLM/tool-calling path. Critically, ev
 that needs a real per-member/per-claim lookup (claims, benefits, formulary, pharmacy lookup,
 identity verification) belongs in `out_of_scope_examples`, not as an answerable intent - this
 model only ever answers static, non-personalized facts and generic conversational turns.
+
+How it improves: reviewers rate replies in call transcripts (app.rag.learning). Ratings of instant
+answers are exported via GET /api/feedback/fastpath-export and merged into the next retrain with
+merge_feedback(): a wrong instant answer becomes an out-of-scope example, a confirmed one an extra
+example of its intent.
 """
 
 from __future__ import annotations
@@ -29,6 +35,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import StratifiedKFold
 from sklearn.pipeline import FeatureUnion, Pipeline
+from threadpoolctl import threadpool_limits
 
 from .textnorm import normalize
 
@@ -79,19 +86,97 @@ def load_intents(path: str | Path) -> IntentData:
     return IntentData(raw.get("company", ""), intents, list(raw.get("out_of_scope_examples", [])))
 
 
+def merge_feedback(data: IntentData, feedback: dict) -> tuple[IntentData, dict]:
+    """Fold reviewer ratings (the /api/feedback/fastpath-export shape:
+    {"examples": {intent_id: [...]}, "out_of_scope_examples": [...]}) into
+    the training data. A sentence marked wrong is out-of-scope even if it is
+    also listed as an intent example -- when in doubt, send it to the LLM."""
+    oos_norms = {normalize(t) for t in feedback.get("out_of_scope_examples", []) if normalize(t)}
+    stats = {"added_examples": 0, "added_oos": 0, "removed_examples": 0, "unknown_intents": []}
+    intents: dict[str, Intent] = {}
+    for intent_id, intent in data.intents.items():
+        kept = [e for e in intent.examples if normalize(e) not in oos_norms]
+        stats["removed_examples"] += len(intent.examples) - len(kept)
+        seen = {normalize(e) for e in kept}
+        for text in feedback.get("examples", {}).get(intent_id, []):
+            norm = normalize(text)
+            if norm and norm not in seen and norm not in oos_norms:
+                kept.append(text)
+                seen.add(norm)
+                stats["added_examples"] += 1
+        intents[intent_id] = Intent(intent.id, intent.answer, intent.end_call, kept)
+    stats["unknown_intents"] = sorted(set(feedback.get("examples", {})) - set(data.intents))
+
+    oos = list(data.oos_examples)
+    seen = {normalize(e) for e in oos}
+    for text in feedback.get("out_of_scope_examples", []):
+        norm = normalize(text)
+        if norm and norm not in seen:
+            oos.append(text)
+            seen.add(norm)
+            stats["added_oos"] += 1
+    return IntentData(data.company, intents, oos), stats
+
+
 def load_test_queries(path: str | Path) -> list[tuple[str, str]]:
     raw = json.loads(Path(path).read_text(encoding="utf-8"))
     return [(q, label) for q, label in raw.get("queries", [])]
 
 
-def build_pipeline(C: float) -> Pipeline:
-    features = FeatureUnion([
+def build_features() -> FeatureUnion:
+    return FeatureUnion([
         ("char", TfidfVectorizer(analyzer="char_wb", ngram_range=(2, 5), sublinear_tf=True)),
         ("word", TfidfVectorizer(analyzer="word", ngram_range=(1, 2), sublinear_tf=True,
                                  token_pattern=r"(?u)\b\w+\b")),
     ])
-    clf = LogisticRegression(C=C, max_iter=5000, class_weight="balanced")
-    return Pipeline([("features", features), ("clf", clf)])
+
+
+def build_classifier(C: float) -> LogisticRegression:
+    return LogisticRegression(C=C, max_iter=5000, class_weight="balanced")
+
+
+def build_pipeline(C: float) -> Pipeline:
+    return Pipeline([("features", build_features()), ("clf", build_classifier(C))])
+
+
+class _FastScorer:
+    """pipeline.predict_proba for one sentence, computed directly from the
+    fitted vocabularies, idf weights and coefficients (sublinear tf * idf,
+    l2-normalized per vectorizer, then softmax). Same numbers, without
+    sklearn's per-call validation overhead. IntentModel checks it against
+    the real pipeline on load and falls back to the pipeline on mismatch."""
+
+    def __init__(self, pipeline: Pipeline):
+        union = pipeline.named_steps["features"]
+        clf = pipeline.named_steps["clf"]
+        self.parts = []
+        offset = 0
+        for _, vec in union.transformer_list:
+            self.parts.append((vec.build_analyzer(), vec.vocabulary_, vec.idf_, offset))
+            offset += len(vec.vocabulary_)
+        self.coef_t = np.ascontiguousarray(clf.coef_.T)  # (n_features, n_classes)
+        self.intercept = np.asarray(clf.intercept_, dtype=float)
+
+    def proba(self, text: str) -> np.ndarray:
+        z = self.intercept.copy()
+        for analyzer, vocab, idf, offset in self.parts:
+            counts: dict[int, int] = {}
+            for token in analyzer(text):
+                j = vocab.get(token)
+                if j is not None:
+                    counts[j] = counts.get(j, 0) + 1
+            if not counts:
+                continue
+            idx = np.fromiter(counts.keys(), dtype=np.intp, count=len(counts))
+            values = (1.0 + np.log(np.fromiter(counts.values(), dtype=float, count=len(counts)))) * idf[idx]
+            values /= np.linalg.norm(values)
+            z += values @ self.coef_t[idx + offset]
+        if z.shape[0] == 1:  # binary LogisticRegression: one logit for the positive class
+            p = 1.0 / (1.0 + np.exp(-z[0]))
+            return np.array([1.0 - p, p])
+        z -= z.max()
+        e = np.exp(z)
+        return e / e.sum()
 
 
 @dataclass
@@ -149,15 +234,28 @@ class IntentModel:
         self.oos_examples = data.oos_examples
         self.meta = meta
         self.classes: list[str] = list(pipeline.classes_)
+        self._fast = self._verified_fast_scorer()
+
+    def _verified_fast_scorer(self) -> _FastScorer | None:
+        sample = [normalize(e) for i in self.intents.values() for e in i.examples[:3]]
+        sample += [normalize(e) for e in self.oos_examples[:10]] + ["", "zzzz qqqq"]
+        try:
+            fast = _FastScorer(self.pipeline)
+            expected = self.pipeline.predict_proba(sample)
+            got = np.vstack([fast.proba(t) for t in sample])
+        except Exception:
+            return None
+        return fast if np.allclose(got, expected, atol=1e-9) else None
 
     # ------------------------------------------------------------------ predict
     def predict_proba(self, texts: list[str]) -> np.ndarray:
         return self.pipeline.predict_proba([normalize(t) for t in texts])
 
     def predict(self, text: str) -> Prediction:
-        if not normalize(text):
+        norm = normalize(text)
+        if not norm:
             return Prediction(OOS, 0.0, False, OOS, 0.0)
-        proba = self.predict_proba([text])[0]
+        proba = self._fast.proba(norm) if self._fast is not None else self.pipeline.predict_proba([norm])[0]
         order = np.argsort(proba)[::-1]
         best, second = self.classes[order[0]], self.classes[order[1]]
         conf = float(proba[order[0]])
@@ -194,13 +292,21 @@ class IntentModel:
         k = max(2, min(n_splits, min(counts.values())))
         skf = StratifiedKFold(n_splits=k, shuffle=True, random_state=seed)
 
-        results = []
-        for C in c_grid:
-            oof = np.zeros((len(X), len(classes)))
+        # Single-threaded BLAS: on a problem this small, thread start-up costs
+        # more than it saves (measured: faster training AND prediction).
+        # Features don't depend on C, so each fold is vectorized once and
+        # reused for every C on the grid.
+        oofs = {C: np.zeros((len(X), len(classes))) for C in c_grid}
+        with threadpool_limits(1):
             for tr, te in skf.split(X, y):
-                pipe = build_pipeline(C).fit(X[tr], y[tr])
-                proba = pipe.predict_proba(X[te])
-                oof[np.ix_(te, pipe.classes_)] = proba
+                features = build_features()
+                X_tr, X_te = features.fit_transform(X[tr]), features.transform(X[te])
+                for C in c_grid:
+                    clf = build_classifier(C).fit(X_tr, y[tr])
+                    oofs[C][np.ix_(te, clf.classes_)] = clf.predict_proba(X_te)
+
+        results = []
+        for C, oof in oofs.items():
             stats = choose_threshold(oof, y, classes, target_precision)
             acc = float((oof.argmax(axis=1) == y).mean())
             results.append((C, stats, acc, oof))
@@ -217,7 +323,8 @@ class IntentModel:
             warnings.warn(f"could not reach {target_precision:.0%} precision in cross-validation "
                           f"(best {stats.precision:.1%}); add more examples and out-of-scope examples")
 
-        pipeline = build_pipeline(C).fit(X, np.array(labels, dtype=object))
+        with threadpool_limits(1):
+            pipeline = build_pipeline(C).fit(X, np.array(labels, dtype=object))
         report = {
             "C": C,
             "threshold": stats.threshold,

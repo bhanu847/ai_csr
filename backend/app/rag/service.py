@@ -1,11 +1,13 @@
+import math
 import uuid
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
+from app.confidence_service import score_from_distance
 from app.models.knowledge import KnowledgeChunk, KnowledgeDocument
 from app.rag.chunker import chunk_pages
-from app.rag.embeddings import embed_texts
+from app.rag.embeddings import embed_query, embed_texts
 from app.rag.parser import parse_document
 
 
@@ -71,17 +73,74 @@ def list_documents(db: Session, agent_id: uuid.UUID) -> list[dict]:
     ]
 
 
+# Reviewer feedback (KnowledgeChunk.feedback_score) can move a chunk by at
+# most this much cosine similarity when ranking -- enough to swap two
+# near-tied candidates (a chunk repeatedly behind wrong answers sinks below
+# its runner-up), never enough to promote an unrelated chunk past a real
+# match. Ranking only: confidence is still scored from the raw distance, so
+# feedback can't talk a weak match into a HIGH-confidence answer.
+FEEDBACK_RANK_WEIGHT = 0.05
+FEEDBACK_SCALE = 3.0  # feedback_score at which the nudge reaches ~76% of its max
+CANDIDATE_MULTIPLIER = 3
+
+
 def search(db: Session, agent_id: uuid.UUID, query: str, k: int = 4) -> list[dict]:
-    [query_vector] = embed_texts([query], is_query=True)
+    query_vector = embed_query(query)
     distance = KnowledgeChunk.embedding.cosine_distance(query_vector)
     rows = db.execute(
         select(KnowledgeChunk, KnowledgeDocument.filename, distance.label("distance"))
         .join(KnowledgeDocument, KnowledgeDocument.id == KnowledgeChunk.document_id)
         .where(KnowledgeChunk.agent_id == agent_id)
         .order_by(distance)
-        .limit(k)
+        .limit(k * CANDIDATE_MULTIPLIER)
     ).all()
-    return [
-        {"text": chunk.text, "page": chunk.page, "filename": filename, "distance": dist}
+    results = [
+        {
+            "chunk_id": chunk.id,
+            "text": chunk.text,
+            "page": chunk.page,
+            "filename": filename,
+            "distance": dist,
+            "feedback_score": chunk.feedback_score or 0.0,
+        }
         for chunk, filename, dist in rows
     ]
+    results.sort(key=_ranking_score, reverse=True)
+    return results[:k]
+
+
+def _ranking_score(result: dict) -> float:
+    return (1 - result["distance"]) + FEEDBACK_RANK_WEIGHT * math.tanh(result["feedback_score"] / FEEDBACK_SCALE)
+
+
+def build_citations(results: list[dict]) -> list[dict]:
+    """Per-chunk citations for ConversationMessage.citations. chunk_id is what
+    lets feedback on the reply later be credited back to these exact chunks."""
+    return [
+        {
+            "filename": r["filename"],
+            "page": r["page"],
+            "confidence": score_from_distance(r["distance"]),
+            "chunk_id": str(r["chunk_id"]),
+        }
+        for r in results
+    ]
+
+
+def reward_chunks(db: Session, citations: list[dict] | None, reward: float) -> int:
+    """Apply a feedback reward to every chunk a reply cited. Returns how many
+    chunks were updated (older replies' citations predate chunk_id)."""
+    chunk_ids = []
+    for c in citations or []:
+        try:
+            chunk_ids.append(uuid.UUID(str(c["chunk_id"])))
+        except (KeyError, ValueError):
+            continue
+    if not chunk_ids:
+        return 0
+    db.execute(
+        update(KnowledgeChunk)
+        .where(KnowledgeChunk.id.in_(chunk_ids))
+        .values(feedback_score=KnowledgeChunk.feedback_score + reward)
+    )
+    return len(chunk_ids)

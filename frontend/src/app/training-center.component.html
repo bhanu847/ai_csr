@@ -88,4 +88,53 @@
       }
     </ul>
   }
+
+  <div class="page-header learned-header">
+    <div>
+      <h2>Learned answers</h2>
+      <p class="page-subtitle">
+        Taught by 👍 / 👎 on replies in call transcripts. These are answered instantly, before the AI model runs.
+      </p>
+    </div>
+  </div>
+
+  @if (feedback.error()) {
+    <p class="error-banner">{{ feedback.error() }}</p>
+  }
+  @if (feedback.learned().length === 0) {
+    <p class="empty-state">
+      Nothing learned yet. Open a call transcript and rate the AI's replies to teach it.
+    </p>
+  } @else {
+    <ul class="insight-list">
+      @for (answer of feedback.learned(); track answer.id) {
+        <li class="insight-card" [class.dismissed]="!answer.active">
+          <div class="insight-head">
+            <span
+              class="badge"
+              [class.badge-accent]="answer.origin === 'correction' || answer.origin === 'confirmed'"
+              [class.badge-warning]="answer.origin === 'regenerated'"
+              [class.badge-neutral]="answer.origin === 'unanswered'"
+            >
+              {{ originLabel(answer.origin) }}
+            </span>
+            <span class="badge" [class.badge-good]="answer.active" [class.badge-neutral]="!answer.active">
+              {{ answer.active ? 'active' : 'off' }}
+            </span>
+          </div>
+          <h3 class="insight-title">“{{ answer.question }}”</h3>
+          <p class="insight-description">{{ answer.answer ?? 'No answer in the documents yet.' }}</p>
+          <div class="insight-footer">
+            <span class="hint">
+              Used {{ answer.uses }}× · 👍 {{ answer.positive }} · 👎 {{ answer.negative }} ·
+              {{ answer.updated_at | date: 'medium' }}
+            </span>
+            <button type="button" class="btn btn-ghost btn-sm" (click)="onToggleLearned(answer)">
+              {{ answer.active ? 'Turn off' : 'Turn on' }}
+            </button>
+          </div>
+        </li>
+      }
+    </ul>
+  }
 </section>

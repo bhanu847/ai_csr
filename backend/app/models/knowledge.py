@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy import Float, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -41,3 +41,7 @@ class KnowledgeChunk(Base):
     page: Mapped[int | None] = mapped_column(Integer, nullable=True)
     text: Mapped[str] = mapped_column(String, nullable=False)
     embedding: Mapped[list[float]] = mapped_column(Vector(EMBEDDING_DIM), nullable=False)
+    # Running reward from reviewer feedback (app.rag.learning): +1 each time
+    # an answer grounded in this chunk is confirmed, -1 each time one is
+    # marked wrong. Nudges retrieval ranking -- see rag.service.search.
+    feedback_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0")

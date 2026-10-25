@@ -89,6 +89,15 @@ class Settings(BaseSettings):
     embedding_model: str = "nomic-embed-text"
     embedding_dim: int = 768
 
+    # How close (cosine similarity of nomic-embed-text query embeddings) a
+    # caller's question must be to a learned answer's question for that
+    # answer to be reused without the LLM (app.rag.learning). Measured
+    # 2026-10-25: filler words / small rewordings of the same question
+    # score 0.98-0.997, but genuinely different questions can score as high
+    # as 0.89-0.90 ("copay for generic drugs" vs "...brand name drugs") --
+    # so this must stay well above 0.90 or callers get the wrong answer.
+    learned_answer_min_similarity: float = 0.95
+
     # Speech-to-text (faster-whisper, app/speech/stt.py) and text-to-speech
     # (piper-tts, app/speech/tts.py) — both self-hosted, no account/key
     # needed. stt_language stays in BCP-47 form ("en-US") for display/

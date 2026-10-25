@@ -29,14 +29,7 @@ def _search_documents(ctx: CallContext, args: dict) -> str:
     # Structured, per-chunk citations for the trust/audit trail (shown in
     # the supervisor transcript UI) — kept separate from the spoken reply,
     # which per the voice rules below never reads out filenames.
-    ctx.last_citations = [
-        {
-            "filename": r["filename"],
-            "page": r["page"],
-            "confidence": confidence_service.score_from_distance(r["distance"]),
-        }
-        for r in results
-    ]
+    ctx.last_citations = rag_service.build_citations(results)
 
     lines = [directive, ""]
     for r in results:

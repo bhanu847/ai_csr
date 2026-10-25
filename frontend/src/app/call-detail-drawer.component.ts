@@ -2,7 +2,16 @@ import { DatePipe, DecimalPipe, JsonPipe } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, signal } from '@angular/core';
 
 import { Call, CallDetail, CallsService, TranscriptEntry } from './calls.service';
+import { FeedbackService } from './feedback.service';
 import { formatDuration } from './format-duration';
+
+interface FeedbackState {
+  status: 'idle' | 'correcting' | 'saving' | 'done' | 'error';
+  helpful?: boolean;
+  correction: string;
+  message?: string;
+  learnedAnswer?: string | null;
+}
 
 @Component({
   selector: 'app-call-detail-drawer',
@@ -18,8 +27,48 @@ export class CallDetailDrawerComponent implements OnChanges {
   readonly transcript = signal<TranscriptEntry[]>([]);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
+  /** Per assistant-message feedback UI state, keyed by message id. */
+  readonly feedback = signal<Record<string, FeedbackState>>({});
 
-  constructor(private readonly calls: CallsService) {}
+  constructor(
+    private readonly calls: CallsService,
+    private readonly feedbackService: FeedbackService,
+  ) {}
+
+  feedbackFor(messageId: string): FeedbackState {
+    return this.feedback()[messageId] ?? { status: 'idle', correction: '' };
+  }
+
+  private setFeedback(messageId: string, patch: Partial<FeedbackState>): void {
+    this.feedback.update((all) => ({ ...all, [messageId]: { ...this.feedbackFor(messageId), ...patch } }));
+  }
+
+  startCorrection(messageId: string): void {
+    this.setFeedback(messageId, { status: 'correcting' });
+  }
+
+  cancelCorrection(messageId: string): void {
+    this.setFeedback(messageId, { status: 'idle', correction: '' });
+  }
+
+  updateCorrection(messageId: string, value: string): void {
+    this.setFeedback(messageId, { correction: value });
+  }
+
+  async rate(messageId: string, helpful: boolean): Promise<void> {
+    const correction = helpful ? undefined : this.feedbackFor(messageId).correction;
+    this.setFeedback(messageId, { status: 'saving', helpful });
+    try {
+      const result = await this.feedbackService.submit(messageId, helpful, correction);
+      this.setFeedback(messageId, {
+        status: 'done',
+        message: result.message,
+        learnedAnswer: result.outcome === 'regenerated' ? result.learned_answer?.answer : null,
+      });
+    } catch (err) {
+      this.setFeedback(messageId, { status: 'error', message: (err as Error).message });
+    }
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (!changes['call']) {
@@ -28,6 +77,7 @@ export class CallDetailDrawerComponent implements OnChanges {
     this.detail.set(null);
     this.transcript.set([]);
     this.error.set(null);
+    this.feedback.set({});
     if (this.call) {
       this.load(this.call.id);
     }
